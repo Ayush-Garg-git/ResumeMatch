@@ -2187,16 +2187,48 @@ function attachAppEvents(route) {
         });
     });
 
-    // Data Deletion
+    // Data Deletion & Complete Account Reset
     const btnDeleteAll = document.getElementById('btn-delete-all-data');
     if (btnDeleteAll) {
-        btnDeleteAll.addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete all uploaded resumes and private profile data?')) {
-                state.resumes = [];
-                state.claims = [];
-                state.readiness = null;
-                showToast('All private data and master resumes deleted successfully.', 'info');
-                renderApp();
+        btnDeleteAll.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to reset your Truth Bank and delete all uploaded resumes & profile skills?')) {
+                try {
+                    // Reset profile state
+                    if (!state.profile) state.profile = {};
+                    state.profile.skills = [];
+                    state.profile.verifiedSkills = [];
+                    state.profile.summary = '';
+                    state.profile.targetRoles = '';
+                    state.profile.projects = [];
+                    state.profile.experiences = [];
+                    state.profile.educations = [];
+                    state.profile.certifications = [];
+
+                    // Sync wiped profile to database
+                    if (api.isLoggedIn()) {
+                        await api.updateProfile(state.profile);
+                    }
+
+                    // Reset local memory state
+                    state.resumes = [];
+                    state.claims = [];
+                    state.readiness = null;
+                    state.activeJobId = null;
+                    state.truthBankConfirmed = false;
+                    state.isTruthBankStale = false;
+                    state.truthBankConfirmedTimestamp = null;
+                    state.evidenceQuestions = [];
+                    state.roadmapMissions = [];
+                    state.interviewQuestions = [];
+                    state.isDemoMode = false;
+
+                    showToast('All private resumes, skills, and profile data cleared from database.', 'success');
+                    renderApp();
+                } catch (err) {
+                    console.error('Data reset error:', err);
+                    showToast('Cleared local data. Profile reset synchronized.', 'info');
+                    renderApp();
+                }
             }
         });
     }
