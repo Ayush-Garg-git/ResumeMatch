@@ -1256,6 +1256,7 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
                             ` : ''}
                         </div>
                     </div>
+                `;
             }).join('')}
         </div>
     `;
