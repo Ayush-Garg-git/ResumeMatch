@@ -1,0 +1,48 @@
+services:
+  # Spring Boot Backend Web Service
+  - type: web
+    name: jobreadiness-backend
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: dev
+      - key: EUREKA_ENABLED
+        value: "false"
+      - key: SERVER_PORT
+        value: "8080"
+      - key: DB_URL
+        fromDatabase:
+          name: jobreadiness-db
+          property: connectionString
+      - key: SPRING_RABBITMQ_HOST
+        sync: false
+      - key: SPRING_RABBITMQ_PORT
+        value: "5672"
+      - key: SPRING_RABBITMQ_USERNAME
+        sync: false
+      - key: SPRING_RABBITMQ_PASSWORD
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: "86400000"
+
+  # Frontend Static / Node Web Service
+  - type: web
+    name: jobreadiness-frontend
+    runtime: docker
+    dockerContext: ./frontend
+    dockerfilePath: ./frontend/Dockerfile
+    envVars:
+      - key: PORT
+        value: "3000"
+
+databases:
+  - name: jobreadiness-db
+    databaseName: jobreadiness
+    user: postgres
+    plan: free
