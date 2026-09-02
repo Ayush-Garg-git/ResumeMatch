@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:${DATABASE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-blue-recipe-aef4kc2p-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require}}}
+    username: ${DB_USERNAME:${DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:neondb_owner}}}
+    password: ${DB_PASSWORD:${DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:npg_jpAuI1r6oYKZ}}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 5
@@ -47,5 +47,5 @@ app:
     dir: "./uploads"
   ai:
     gemini:
-      api-key: ${GEMINI_API_KEY}
+      api-key: ${GEMINI_API_KEY:AIzaSyA7OQ2ixs-NlJvKK6GTNvX9TF-8JFToNww}
       url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
