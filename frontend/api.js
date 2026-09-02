@@ -14,8 +14,6 @@ export const getApiBaseUrl = () => {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             return 'http://localhost:8080/api/v1';
         }
-        // In production on Vercel, use relative /api/v1 for zero-CORS Edge reverse proxy
-        return '/api/v1';
     }
     return DEFAULT_REMOTE_BACKEND;
 };

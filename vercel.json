@@ -4,10 +4,6 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/api/v1/:path*",
-      "destination": "https://resumematch-fcnz.onrender.com/api/v1/:path*"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
