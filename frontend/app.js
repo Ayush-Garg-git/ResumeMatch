@@ -68,33 +68,11 @@ function navigateTo(route) {
     window.location.hash = `#${route}`;
 }
 
-async function performReadinessEvaluation() {
-    if (!state.activeJobId) {
-        showToast('Please select or add a target job first.', 'warning');
-        navigateTo('jobs');
-        return;
-    }
-    showToast('Evaluating 4-Bucket readiness against job requirements...', 'info');
-    state.loading = true;
-    renderApp();
-    try {
-        await api.performReadiness(state.activeJobId);
-        showToast('4-Bucket Readiness analysis complete!', 'success');
-        await loadInitialData();
-    } catch (err) {
-        showToast(err.message || 'Evaluation failed', 'error');
-    } finally {
-        state.loading = false;
-        renderApp();
-    }
-}
-
 // Expose utilities on window for inline HTML attributes
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.showToast = showToast;
 window.navigateTo = navigateTo;
-window.performReadinessEvaluation = performReadinessEvaluation;
 
 // Setup Event Listeners
 function setupGlobalEvents() {
@@ -462,6 +440,7 @@ async function performReadinessEvaluation() {
         renderApp();
     }
 }
+window.performReadinessEvaluation = performReadinessEvaluation;
 
 // Invalidate Downstream State when Truth Bank changes
 function invalidateTruthBankState() {
