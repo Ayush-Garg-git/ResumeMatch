@@ -1256,10 +1256,11 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
                             ` : ''}
                         </div>
                     </div>
-                `;
             }).join('')}
         </div>
     `;
+}
+
 // Helper to extract clean array of skills
 function getProfileSkillsList(p) {
     if (!p) return [];
