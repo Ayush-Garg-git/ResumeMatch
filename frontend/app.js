@@ -2108,6 +2108,9 @@ function attachAppEvents(route) {
     const btnHeaderNewJob = document.getElementById('btn-header-new-job');
     if (btnHeaderNewJob) btnHeaderNewJob.addEventListener('click', () => openModal('job-modal'));
 
+    const btnOpenResumeUpload = document.getElementById('btn-open-resume-upload');
+    if (btnOpenResumeUpload) btnOpenResumeUpload.addEventListener('click', () => openModal('resume-modal'));
+
     // Truth Bank Confirmation Checkpoint
     const btnConfirmTruth = document.getElementById('btn-confirm-truth-bank');
     if (btnConfirmTruth) {

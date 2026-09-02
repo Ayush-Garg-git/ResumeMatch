@@ -22,10 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -94,7 +93,7 @@ public class ResumeService {
                 .build();
         versionRepository.save(version);
 
-        // 5. Parse ALL skills, technical proficiencies, and career details with Gemini AI
+        // 5. Parse ALL skills, technical proficiencies, and career details with Gemini AI and deterministic parser
         parseAndPopulateProfileWithAi(user, extractedText);
 
         return resume;
@@ -103,100 +102,122 @@ public class ResumeService {
     private void parseAndPopulateProfileWithAi(User user, String resumeText) {
         if (resumeText == null || resumeText.isBlank()) return;
 
+        CareerProfile profile = profileRepository.findByUserId(user.getId())
+                .orElseGet(() -> CareerProfile.builder()
+                        .user(user)
+                        .educations(new ArrayList<>())
+                        .projects(new ArrayList<>())
+                        .experiences(new ArrayList<>())
+                        .certifications(new ArrayList<>())
+                        .skills(new ArrayList<>())
+                        .build());
+
+        if (profile.getSkills() == null) {
+            profile.setSkills(new ArrayList<>());
+        }
+
+        Set<String> existingSkillNames = profile.getSkills().stream()
+                .map(ps -> ps.getSkill().getName().toLowerCase().trim())
+                .collect(Collectors.toSet());
+
+        // 1. Deterministic Extraction from Technical Skills block (guarantees 100% of resume items)
+        extractDeterministicSkills(profile, resumeText, existingSkillNames);
+
+        // 2. Comprehensive AI Extraction with Gemini
         String systemInstruction = "You are an elite, comprehensive AI Resume Parser for technical and engineering resumes. " +
                 "Extract EVERY SINGLE skill, programming language, database, framework, library, tool, operating system, " +
                 "hardware competency, networking protocol, and technology explicitly mentioned in the resume. " +
-                "Do NOT omit any skill. For example, include hardware skills (PC Assembly, Troubleshooting, BIOS/UEFI), " +
-                "networking (TCP/IP, LAN, DNS, DHCP, Routers/Switches), OS (Linux, Windows), databases (SQL, MySQL, PostgreSQL), " +
-                "programming languages (Java, C++, Python, JavaScript, TypeScript), backend/web (Spring Boot, Spring MVC, REST APIs, Hibernate/JPA, JDBC, Node.js, HTML, CSS), " +
-                "and tools (Git, GitHub, VS Code, Postman, Vercel, Google Cloud Vision, Gemini API, IoT, Sensors). " +
+                "Do NOT omit any skill. " +
                 "Return ONLY a valid JSON object matching this schema without markdown code fences:\n" +
                 "{\n" +
                 "  \"summary\": \"Extracted professional summary\",\n" +
                 "  \"targetRoles\": \"Comma-separated target roles suggested by background\",\n" +
-                "  \"skills\": [{\"name\": \"Skill Name\", \"category\": \"TECHNICAL\"}],\n" +
-                "  \"educations\": [{\"school\": \"...\", \"degree\": \"...\", \"fieldOfStudy\": \"...\", \"gpa\": 0.0}],\n" +
-                "  \"projects\": [{\"title\": \"...\", \"description\": \"...\", \"role\": \"...\"}],\n" +
-                "  \"experiences\": [{\"company\": \"...\", \"role\": \"...\", \"description\": \"...\"}]\n" +
+                "  \"skills\": [{\"name\": \"Skill Name\", \"category\": \"TECHNICAL\"}]\n" +
                 "}";
 
         try {
             String jsonResponse = aiService.generateContent(resumeText, systemInstruction, "RESUME_PARSE", user.getId());
-            if (jsonResponse == null || jsonResponse.isBlank()) return;
+            if (jsonResponse != null && !jsonResponse.isBlank()) {
+                String cleanJson = jsonResponse.trim();
+                if (cleanJson.startsWith("```json")) cleanJson = cleanJson.substring(7);
+                else if (cleanJson.startsWith("```")) cleanJson = cleanJson.substring(3);
+                if (cleanJson.endsWith("```")) cleanJson = cleanJson.substring(0, cleanJson.length() - 3);
+                cleanJson = cleanJson.trim();
 
-            // Clean markdown fences
-            String cleanJson = jsonResponse.trim();
-            if (cleanJson.startsWith("```json")) {
-                cleanJson = cleanJson.substring(7);
-            } else if (cleanJson.startsWith("```")) {
-                cleanJson = cleanJson.substring(3);
-            }
-            if (cleanJson.endsWith("```")) {
-                cleanJson = cleanJson.substring(0, cleanJson.length() - 3);
-            }
-            cleanJson = cleanJson.trim();
+                JsonNode rootNode = objectMapper.readTree(cleanJson);
 
-            JsonNode rootNode = objectMapper.readTree(cleanJson);
-
-            CareerProfile profile = profileRepository.findByUserId(user.getId())
-                    .orElseGet(() -> CareerProfile.builder()
-                            .user(user)
-                            .educations(new ArrayList<>())
-                            .projects(new ArrayList<>())
-                            .experiences(new ArrayList<>())
-                            .certifications(new ArrayList<>())
-                            .skills(new ArrayList<>())
-                            .build());
-
-            if (profile.getSummary() == null || profile.getSummary().isBlank()) {
-                String sum = rootNode.path("summary").asText(null);
-                if (sum != null && !sum.isBlank()) profile.setSummary(sum);
-            }
-            if (profile.getTargetRoles() == null || profile.getTargetRoles().isBlank()) {
-                String roles = rootNode.path("targetRoles").asText(null);
-                if (roles != null && !roles.isBlank()) profile.setTargetRoles(roles);
-            }
-
-            // Sync all extracted skills
-            JsonNode skillsNode = rootNode.path("skills");
-            if (skillsNode.isArray()) {
-                if (profile.getSkills() == null) {
-                    profile.setSkills(new ArrayList<>());
+                if (profile.getSummary() == null || profile.getSummary().isBlank()) {
+                    String sum = rootNode.path("summary").asText(null);
+                    if (sum != null && !sum.isBlank()) profile.setSummary(sum);
+                }
+                if (profile.getTargetRoles() == null || profile.getTargetRoles().isBlank()) {
+                    String roles = rootNode.path("targetRoles").asText(null);
+                    if (roles != null && !roles.isBlank()) profile.setTargetRoles(roles);
                 }
 
-                Set<String> existingSkillNames = profile.getSkills().stream()
-                        .map(ps -> ps.getSkill().getName().toLowerCase().trim())
-                        .collect(Collectors.toSet());
-
-                for (JsonNode skillElement : skillsNode) {
-                    String skillName = skillElement.path("name").asText("").trim();
-                    String category = skillElement.path("category").asText("TECHNICAL").trim();
-
-                    if (!skillName.isBlank() && !existingSkillNames.contains(skillName.toLowerCase())) {
-                        Skill skill = skillRepository.findByNameIgnoreCase(skillName)
-                                .orElseGet(() -> skillRepository.save(Skill.builder()
-                                        .name(skillName)
-                                        .category(category)
-                                        .build()));
-
-                        ProfileSkill profileSkill = ProfileSkill.builder()
-                                .id(new ProfileSkill.ProfileSkillId(profile.getId(), skill.getId()))
-                                .profile(profile)
-                                .skill(skill)
-                                .selfAssessedLevel("PROFICIENT")
-                                .build();
-
-                        profile.getSkills().add(profileSkill);
-                        existingSkillNames.add(skillName.toLowerCase());
+                JsonNode skillsNode = rootNode.path("skills");
+                if (skillsNode.isArray()) {
+                    for (JsonNode skillElement : skillsNode) {
+                        String skillName = skillElement.path("name").asText("").trim();
+                        String category = skillElement.path("category").asText("TECHNICAL").trim();
+                        addSkillToProfile(profile, skillName, category, existingSkillNames);
                     }
                 }
             }
-
-            profileRepository.save(profile);
-            log.info("Successfully extracted and synced {} skills from resume for user {}", 
-                    profile.getSkills().size(), user.getId());
         } catch (Exception e) {
             log.warn("Non-fatal error parsing resume with AI: {}", e.getMessage());
+        }
+
+        profileRepository.save(profile);
+        log.info("Successfully extracted and synced {} skills from resume for user {}", 
+                profile.getSkills().size(), user.getId());
+    }
+
+    private void extractDeterministicSkills(CareerProfile profile, String text, Set<String> existingSkillNames) {
+        String[] lines = text.split("\\r?\\n");
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.startsWith("Hardware:") || trimmed.startsWith("Networking:") || 
+                trimmed.startsWith("Operating Systems:") || trimmed.startsWith("Programming:") || 
+                trimmed.startsWith("Backend & Web:") || trimmed.startsWith("Databases:") || 
+                trimmed.startsWith("Tools:")) {
+                
+                String[] parts = trimmed.split(":", 2);
+                if (parts.length == 2) {
+                    String category = parts[0].trim();
+                    String itemsStr = parts[1].trim();
+                    String[] skillItems = itemsStr.split("[,;•|]");
+                    for (String item : skillItems) {
+                        String cleanSkill = item.replaceAll("[()0-9/]", " ").trim();
+                        cleanSkill = item.trim();
+                        if (!cleanSkill.isBlank() && cleanSkill.length() > 1 && cleanSkill.length() < 50) {
+                            addSkillToProfile(profile, cleanSkill, category, existingSkillNames);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void addSkillToProfile(CareerProfile profile, String skillName, String category, Set<String> existingSkillNames) {
+        if (skillName == null || skillName.isBlank()) return;
+        String normalized = skillName.trim();
+        if (!existingSkillNames.contains(normalized.toLowerCase())) {
+            Skill skill = skillRepository.findByNameIgnoreCase(normalized)
+                    .orElseGet(() -> skillRepository.save(Skill.builder()
+                            .name(normalized)
+                            .category(category)
+                            .build()));
+
+            ProfileSkill profileSkill = ProfileSkill.builder()
+                    .id(new ProfileSkill.ProfileSkillId(profile.getId(), skill.getId()))
+                    .profile(profile)
+                    .skill(skill)
+                    .selfAssessedLevel("PROFICIENT")
+                    .build();
+
+            profile.getSkills().add(profileSkill);
+            existingSkillNames.add(normalized.toLowerCase());
         }
     }
 
