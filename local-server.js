@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const PUBLIC_DIR = path.join(__dirname);
+const PUBLIC_DIR = path.join(__dirname, 'frontend');
 
 const MIME_TYPES = {
     '.html': 'text/html; charset=utf-8',
@@ -18,7 +18,6 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-    // Basic CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
