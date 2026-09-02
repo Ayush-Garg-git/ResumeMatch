@@ -4,6 +4,6 @@
   "private": true,
   "description": "ResumeMatch - Truth-First Career Readiness Copilot",
   "scripts": {
-    "build": "echo 'Static build complete'"
+    "build": "echo 'Static build ready in public/'"
   }
 }
