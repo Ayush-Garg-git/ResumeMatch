@@ -844,24 +844,24 @@ function renderLandingPage() {
                 </div>
 
                 <div class="workflow-steps-preview">
-                    <div class="flow-step-card">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#profile'; if(!api.isLoggedIn()) loadSampleDemoData();">
                         <div class="step-num">Step 01</div>
-                        <h4 class="step-title">Truth Bank Review</h4>
+                        <h4 class="step-title"><i class="fa-solid fa-shield-halved mr-1 text-success"></i> Truth Bank Review</h4>
                         <p class="step-desc">Upload your resume. Review and confirm verified skills before matching begins.</p>
                     </div>
-                    <div class="flow-step-card">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#jobs'; if(!api.isLoggedIn()) loadSampleDemoData();">
                         <div class="step-num">Step 02</div>
-                        <h4 class="step-title">Target Job Match</h4>
+                        <h4 class="step-title"><i class="fa-solid fa-briefcase mr-1 text-primary"></i> Target Job Match</h4>
                         <p class="step-desc">Paste any Job Description. AI separates closable technical skills from structural constraints.</p>
                     </div>
-                    <div class="flow-step-card">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#dashboard'; if(!api.isLoggedIn()) loadSampleDemoData();">
                         <div class="step-num">Step 03</div>
-                        <h4 class="step-title">4-Bucket Diagnosis</h4>
+                        <h4 class="step-title"><i class="fa-solid fa-chart-pie mr-1 text-warning"></i> 4-Bucket Diagnosis</h4>
                         <p class="step-desc">Clear breakdown of Demonstrated, Hidden, Weak, and Genuine Gap requirements.</p>
                     </div>
-                    <div class="flow-step-card">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#tailoring'; if(!api.isLoggedIn()) loadSampleDemoData();">
                         <div class="step-num">Step 04</div>
-                        <h4 class="step-title">Tailor & Defend</h4>
+                        <h4 class="step-title"><i class="fa-solid fa-wand-magic-sparkles mr-1 text-secondary"></i> Tailor & Defend</h4>
                         <p class="step-desc">Tailor bullets sourced strictly from verified evidence, export clean ATS PDF, and defend claims.</p>
                     </div>
                 </div>
