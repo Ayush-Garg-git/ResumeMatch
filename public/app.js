@@ -1262,16 +1262,28 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
     `;
 }
 
-// Helper to get array of skill names
-function getProfileSkillsList(p) {
-    if (!p) return [];
-    if (p.skills && p.skills.length > 0) {
-        return p.skills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || (s.skill && s.skill.name) || '')).filter(Boolean);
+// Helper to get skill category & icon metadata
+function getSkillMetadata(skillName) {
+    const s = (skillName || '').toLowerCase();
+    if (s.includes('java') || s.includes('python') || s.includes('c++') || s.includes('javascript') || s.includes('typescript') || s.includes('golang') || s.includes('rust') || s.includes('php') || s.includes('ruby')) {
+        return { category: 'Languages', icon: 'fa-solid fa-code', color: '#60A5FA' };
     }
-    if (p.verifiedSkills && p.verifiedSkills.length > 0) {
-        return p.verifiedSkills;
+    if (s.includes('spring') || s.includes('rest') || s.includes('hibernate') || s.includes('jpa') || s.includes('jdbc') || s.includes('node') || s.includes('express') || s.includes('django') || s.includes('fastapi') || s.includes('mvc') || s.includes('html') || s.includes('css')) {
+        return { category: 'Backend & Web', icon: 'fa-solid fa-server', color: '#34D399' };
     }
-    return [];
+    if (s.includes('sql') || s.includes('postgres') || s.includes('mysql') || s.includes('mongo') || s.includes('redis') || s.includes('oracle') || s.includes('dbms') || s.includes('database')) {
+        return { category: 'Databases', icon: 'fa-solid fa-database', color: '#FBBF24' };
+    }
+    if (s.includes('tcp') || s.includes('lan') || s.includes('dns') || s.includes('dhcp') || s.includes('network') || s.includes('router') || s.includes('switch') || s.includes('protocol') || s.includes('ipconfig') || s.includes('ping') || s.includes('cabling')) {
+        return { category: 'Networking', icon: 'fa-solid fa-network-wired', color: '#38BDF8' };
+    }
+    if (s.includes('hardware') || s.includes('assembly') || s.includes('cpu') || s.includes('ram') || s.includes('motherboard') || s.includes('bios') || s.includes('uefi') || s.includes('psu') || s.includes('component') || s.includes('iot') || s.includes('sensor')) {
+        return { category: 'Hardware & Systems', icon: 'fa-solid fa-microchip', color: '#F472B6' };
+    }
+    if (s.includes('linux') || s.includes('windows') || s.includes('unix') || s.includes('macos') || s.includes('ubuntu') || s.includes('os') || s.includes('operating')) {
+        return { category: 'Operating Systems', icon: 'fa-brands fa-linux', color: '#A78BFA' };
+    }
+    return { category: 'Tools & Cloud', icon: 'fa-solid fa-screwdriver-wrench', color: '#818CF8' };
 }
 
 // 3. Profile & Resumes View (Truth Bank Review & Confirmation)
@@ -1279,6 +1291,19 @@ function renderProfileView() {
     const p = state.profile || {};
     const resumes = state.resumes || [];
     const verifiedSkills = getProfileSkillsList(p);
+
+    const activeFilter = state.skillCategoryFilter || 'ALL';
+    const searchQuery = (state.skillSearchQuery || '').toLowerCase();
+
+    // Group & filter skills
+    const filteredSkills = verifiedSkills.filter(sk => {
+        const meta = getSkillMetadata(sk);
+        const matchesCategory = (activeFilter === 'ALL') || (meta.category === activeFilter);
+        const matchesSearch = !searchQuery || sk.toLowerCase().includes(searchQuery);
+        return matchesCategory && matchesSearch;
+    });
+
+    const categories = ['ALL', 'Languages', 'Backend & Web', 'Databases', 'Networking', 'Hardware & Systems', 'Operating Systems', 'Tools & Cloud'];
 
     return `
         <div class="view-header">
@@ -1293,30 +1318,72 @@ function renderProfileView() {
 
         <!-- Checkpoint 1: Truth Bank Verification & Review Card -->
         <div class="truth-bank-review-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div class="truth-bank-header-bar">
                 <div>
-                    <h3 style="font-size: 1.25rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-shield-halved mr-2 text-success"></i>Checkpoint: Confirm Your Truth Bank</h3>
-                    <p class="text-secondary" style="font-size: 0.85rem;">Review extracted skills (${verifiedSkills.length} verified). Downstream tailoring strictly relies on this confirmed data.</p>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
+                        <h3 style="font-size: 1.3rem; margin-bottom: 0;">
+                            <i class="fa-solid fa-shield-halved mr-2 text-success"></i>Confirmed Truth Bank
+                        </h3>
+                        <span class="skills-stat-pill">
+                            <span class="pulse-dot"></span> ${verifiedSkills.length} Verified Skills
+                        </span>
+                    </div>
+                    <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0;">
+                        Every skill extracted from your master resume is categorized and locked for truth-first matching.
+                    </p>
                 </div>
-                <button class="btn ${state.truthBankConfirmed ? 'btn-outline-success' : 'btn-primary'}" id="btn-confirm-truth-bank">
-                    <i class="fa-solid fa-circle-check mr-2"></i> ${state.truthBankConfirmed ? 'Truth Bank Confirmed ✓' : 'Confirm Truth Bank'}
-                </button>
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <div class="skills-search-box">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="skills-filter-search" placeholder="Filter skills by name..." value="${state.skillSearchQuery || ''}">
+                    </div>
+                    <button class="btn ${state.truthBankConfirmed ? 'btn-outline-success' : 'btn-primary'}" id="btn-confirm-truth-bank">
+                        <i class="fa-solid fa-circle-check mr-2"></i> ${state.truthBankConfirmed ? 'Truth Bank Confirmed ✓' : 'Confirm Truth Bank'}
+                    </button>
+                </div>
             </div>
 
-            <div style="margin-bottom: 1.25rem;">
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block;">Confirmed Skill Registry</label>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="truth-skills-container">
-                    ${verifiedSkills.length === 0 ? `
-                        <span class="text-secondary" style="font-size: 0.85rem; padding: 0.4rem 0;">No skills extracted yet. Upload your resume above to extract all competencies!</span>
-                    ` : verifiedSkills.map(sk => `
-                        <span class="editable-skill-chip">
-                            <span>${sk}</span>
-                            <i class="fa-solid fa-xmark chip-remove" data-skill="${sk}" title="Remove skill"></i>
-                        </span>
-                    `).join('')}
-                    <button class="btn btn-secondary btn-sm" id="btn-add-truth-skill" style="padding: 0.2rem 0.6rem; border-radius: 999px;">
-                        <i class="fa-solid fa-plus mr-1"></i> Add Skill
-                    </button>
+            <!-- Category Filter Tabs -->
+            <div class="skill-category-tabs">
+                ${categories.map(cat => {
+                    const count = cat === 'ALL' ? verifiedSkills.length : verifiedSkills.filter(sk => getSkillMetadata(sk).category === cat).length;
+                    if (count === 0 && cat !== 'ALL') return '';
+                    return `
+                        <button class="skill-tab-btn ${activeFilter === cat ? 'active' : ''}" data-cat="${cat}">
+                            ${cat} <span style="opacity: 0.7; font-size: 0.75rem;">(${count})</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+
+            <!-- Skills Showcase Grid -->
+            <div class="skills-grid-showcase" id="truth-skills-container">
+                ${filteredSkills.length === 0 ? `
+                    <div style="grid-column: 1 / -1; padding: 2rem; text-align: center; background: rgba(255,255,255,0.02); border-radius: var(--radius-md); border: 1px dashed rgba(255,255,255,0.1);">
+                        <i class="fa-solid fa-sparkles text-muted mb-2" style="font-size: 1.5rem;"></i>
+                        <p class="text-secondary" style="font-size: 0.9rem; margin-bottom: 0;">No skills match the current filter. Upload your resume or add custom skills below!</p>
+                    </div>
+                ` : filteredSkills.map(sk => {
+                    const meta = getSkillMetadata(sk);
+                    return `
+                        <div class="premium-skill-card">
+                            <div class="skill-info-left">
+                                <div class="skill-category-icon" style="color: ${meta.color}; background: ${meta.color}15; border-color: ${meta.color}30;">
+                                    <i class="${meta.icon}"></i>
+                                </div>
+                                <div class="skill-title-group">
+                                    <span class="skill-name-text" title="${sk}">${sk}</span>
+                                    <span class="skill-tag-category">${meta.category}</span>
+                                </div>
+                            </div>
+                            <button class="skill-delete-btn chip-remove" data-skill="${sk}" title="Remove ${sk}">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('')}
+                <div class="btn-add-skill-card" id="btn-add-truth-skill">
+                    <i class="fa-solid fa-plus-circle"></i> Add Skill
                 </div>
             </div>
         </div>
@@ -2030,6 +2097,28 @@ function attachAppEvents(route) {
             state.truthBankConfirmedTimestamp = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             showToast('Truth Bank confirmed as source-of-truth!', 'success');
             renderApp();
+        });
+    }
+
+    // Skill Category Tabs Filter
+    document.querySelectorAll('.skill-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.skillCategoryFilter = btn.getAttribute('data-cat');
+            renderApp();
+        });
+    });
+
+    // Real-time Skills Search
+    const searchInput = document.getElementById('skills-filter-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            state.skillSearchQuery = e.target.value;
+            renderApp();
+            const freshInput = document.getElementById('skills-filter-search');
+            if (freshInput) {
+                freshInput.focus();
+                freshInput.setSelectionRange(freshInput.value.length, freshInput.value.length);
+            }
         });
     }
 
