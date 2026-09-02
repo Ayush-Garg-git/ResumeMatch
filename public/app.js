@@ -849,9 +849,6 @@ function renderLockedRouteView(title, description) {
                 <button class="btn btn-primary" onclick="window.location.hash='#dashboard'">
                     <i class="fa-solid fa-arrow-left mr-2"></i> Go to Readiness Hub
                 </button>
-                <button class="btn btn-demo-cta btn-load-sample-demo">
-                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Load Demo Data (Unlock Everything)
-                </button>
             </div>
         </div>
     `;
@@ -882,28 +879,28 @@ function renderLandingPage() {
                     <button class="btn btn-primary btn-lg" id="btn-hero-start">
                         <i class="fa-solid fa-bolt mr-2"></i>Launch Copilot
                     </button>
-                    <button class="btn btn-demo-cta btn-lg btn-load-sample-demo">
-                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Try with Demo Example
+                    <button class="btn btn-secondary btn-lg" id="btn-hero-signin">
+                        <i class="fa-solid fa-arrow-right-to-bracket mr-2"></i>Sign In
                     </button>
                 </div>
 
                 <div class="workflow-steps-preview">
-                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#profile'; if(!api.isLoggedIn()) loadSampleDemoData();">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#profile'">
                         <div class="step-num">Step 01</div>
                         <h4 class="step-title"><i class="fa-solid fa-shield-halved mr-1 text-success"></i> Truth Bank Review</h4>
                         <p class="step-desc">Upload your resume. Review and confirm verified skills before matching begins.</p>
                     </div>
-                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#jobs'; if(!api.isLoggedIn()) loadSampleDemoData();">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#jobs'">
                         <div class="step-num">Step 02</div>
                         <h4 class="step-title"><i class="fa-solid fa-briefcase mr-1 text-primary"></i> Target Job Match</h4>
                         <p class="step-desc">Paste any Job Description. AI separates closable technical skills from structural constraints.</p>
                     </div>
-                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#dashboard'; if(!api.isLoggedIn()) loadSampleDemoData();">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#dashboard'">
                         <div class="step-num">Step 03</div>
                         <h4 class="step-title"><i class="fa-solid fa-chart-pie mr-1 text-warning"></i> 4-Bucket Diagnosis</h4>
                         <p class="step-desc">Clear breakdown of Demonstrated, Hidden, Weak, and Genuine Gap requirements.</p>
                     </div>
-                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#tailoring'; if(!api.isLoggedIn()) loadSampleDemoData();">
+                    <div class="flow-step-card cursor-pointer" onclick="window.location.hash='#tailoring'">
                         <div class="step-num">Step 04</div>
                         <h4 class="step-title"><i class="fa-solid fa-wand-magic-sparkles mr-1 text-secondary"></i> Tailor & Defend</h4>
                         <p class="step-desc">Tailor bullets sourced strictly from verified evidence, export clean ATS PDF, and defend claims.</p>
@@ -953,9 +950,6 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
                         <h3 style="font-size: 1.25rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-list-check mr-2 text-cyan"></i>4-Step Readiness Path</h3>
                         <p class="text-secondary" style="font-size: 0.85rem;">Follow the sequence below to evaluate your true qualifications against any job.</p>
                     </div>
-                    <button class="btn btn-demo-cta btn-sm btn-load-sample-demo">
-                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Try with Demo Example
-                    </button>
                 </div>
 
                 <div class="onboarding-progress-bar-bg">
@@ -1081,9 +1075,6 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
                     <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                         <button type="submit" id="btn-inline-submit-job" class="btn btn-primary btn-lg">
                             <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> Analyze Target Job
-                        </button>
-                        <button type="button" class="btn btn-demo-cta btn-lg btn-load-sample-demo">
-                            <i class="fa-solid fa-bolt mr-2"></i> Try with Demo Example
                         </button>
                     </div>
                 </form>
