@@ -2478,10 +2478,14 @@ function attachLandingEvents() {
 // Initialize Application
 async function init() {
     setupGlobalEvents();
+    renderApp(); // Render page instantaneously!
     if (api.isLoggedIn()) {
-        await loadInitialData();
+        loadInitialData().then(() => {
+            renderApp();
+        }).catch((err) => {
+            console.warn('Initial data load warning:', err);
+        });
     }
-    renderApp();
 }
 
 // Launch

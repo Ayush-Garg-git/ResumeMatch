@@ -58,9 +58,16 @@ async function request(endpoint, options = {}) {
         headers
     };
 
+    let coldStartTimer = setTimeout(() => {
+        if (typeof window !== 'undefined' && window.showToast) {
+            window.showToast('Connecting to cloud backend... (Render free instance waking up)', 'info');
+        }
+    }, 2500);
+
     try {
         const baseUrl = getApiBaseUrl();
         const response = await fetch(`${baseUrl}${endpoint}`, config);
+        clearTimeout(coldStartTimer);
         
         // Handle 401 Unauthorized / 403 Forbidden
         if (response.status === 401 || response.status === 403) {
@@ -97,6 +104,12 @@ async function uploadRequest(endpoint, formData) {
         ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
 
+    let coldStartTimer = setTimeout(() => {
+        if (typeof window !== 'undefined' && window.showToast) {
+            window.showToast('Connecting to cloud backend... (Render instance waking up)', 'info');
+        }
+    }, 2500);
+
     try {
         const baseUrl = getApiBaseUrl();
         const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -104,6 +117,7 @@ async function uploadRequest(endpoint, formData) {
             headers,
             body: formData
         });
+        clearTimeout(coldStartTimer);
 
         if (response.status === 401 || response.status === 403) {
             setAuthToken(null);
