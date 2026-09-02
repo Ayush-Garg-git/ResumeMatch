@@ -4,7 +4,7 @@
  * Powered by Google Gemini 3.7 Flash
  */
 
-const DEFAULT_REMOTE_BACKEND = 'https://jobreadiness-backend.onrender.com/api/v1';
+const DEFAULT_REMOTE_BACKEND = 'https://resumematch.onrender.com/api/v1';
 
 export const getApiBaseUrl = () => {
     if (typeof window !== 'undefined') {
