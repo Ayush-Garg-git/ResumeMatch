@@ -1260,6 +1260,24 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
             }).join('')}
         </div>
     `;
+// Helper to extract clean array of skills
+function getProfileSkillsList(p) {
+    if (!p) return [];
+    if (p.skills && p.skills.length > 0) {
+        return p.skills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || (s.skill && s.skill.name) || '')).filter(Boolean);
+    }
+    if (p.verifiedSkills && p.verifiedSkills.length > 0) {
+        return p.verifiedSkills;
+    }
+    return [
+        'PC and Server Assembly', 'Hardware Troubleshooting', 'Component Replacement', 'BIOS/UEFI Configuration',
+        'TCP/IP', 'LAN / DNS / DHCP', 'Routers & Switches', 'Network Diagnostics',
+        'Linux CLI & Administration', 'Windows Server',
+        'SQL', 'MySQL', 'PostgreSQL', 'Data Integrity Checks',
+        'Java', 'C++', 'Python', 'JavaScript', 'TypeScript',
+        'Spring Boot', 'Spring MVC', 'REST APIs', 'Hibernate/JPA', 'JDBC', 'Node.js', 'HTML & CSS',
+        'Git & GitHub', 'VS Code', 'Postman', 'Vercel', 'Google Cloud Vision API', 'Gemini AI', 'IoT & Sensors'
+    ];
 }
 
 // Helper to get skill category & icon metadata

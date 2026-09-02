@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${DB_URL:${DATABASE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-blue-recipe-aef4kc2p-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require}}}
-    username: ${DB_USERNAME:${DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:neondb_owner}}}
-    password: ${DB_PASSWORD:${DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:npg_jpAuI1r6oYKZ}}}
+    url: ${DB_URL:${DATABASE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/jobreadiness}}}
+    username: ${DB_USERNAME:${DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:postgres}}}
+    password: ${DB_PASSWORD:${DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:postgres}}}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -42,11 +42,11 @@ app:
     jd-exchange: "jd.analysis.exchange"
     jd-routing-key: "jd.analysis.routingKey"
   jwt:
-    secret: ${JWT_SECRET:3cfa76f28682c3c4321742487421376824138764213876481237648123764812374682314768231}
+    secret: ${JWT_SECRET:3cfa76f28682c3c432174248742137682413876421387648123764812374682314768231}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
   upload:
     dir: "./uploads"
   ai:
     gemini:
-      api-key: ${GEMINI_API_KEY:AIzaSyA7OQ2ixs-NlJvKK6GTNvX9TF-8JFToNww}
+      api-key: ${GEMINI_API_KEY:}
       url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
