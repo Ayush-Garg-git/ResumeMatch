@@ -1,0 +1,9 @@
+{
+  "name": "resumematch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ResumeMatch - Truth-First Career Readiness Copilot",
+  "scripts": {
+    "build": "echo 'Static build complete'"
+  }
+}
