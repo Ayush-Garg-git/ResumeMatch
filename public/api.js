@@ -1,7 +1,7 @@
 /**
  * Job Readiness Copilot - Live API Client
- * Connects directly to the Spring Boot REST API (http://localhost:8080/api/v1)
- * Powered by Google Gemini 3.7 Flash
+ * Connects directly to the Spring Boot REST API
+ * Powered by Google Gemini
  */
 
 const DEFAULT_REMOTE_BACKEND = 'https://resumematch-fcnz.onrender.com/api/v1';
@@ -14,6 +14,8 @@ export const getApiBaseUrl = () => {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             return 'http://localhost:8080/api/v1';
         }
+        // In production on Vercel, use relative /api/v1 for zero-CORS Edge reverse proxy
+        return '/api/v1';
     }
     return DEFAULT_REMOTE_BACKEND;
 };
@@ -22,8 +24,6 @@ export const setApiBaseUrl = (url) => {
     if (url) localStorage.setItem('jr_api_base_url', url);
     else localStorage.removeItem('jr_api_base_url');
 };
-
-const API_BASE_URL = getApiBaseUrl();
 
 // Session Storage
 export const getAuthToken = () => localStorage.getItem('jr_token');
@@ -60,20 +60,18 @@ async function request(endpoint, options = {}) {
 
     let coldStartTimer = setTimeout(() => {
         if (typeof window !== 'undefined' && window.showToast) {
-            window.showToast('Connecting to cloud backend... (Render free instance waking up)', 'info');
+            window.showToast('Connecting to cloud backend... (Render instance waking up)', 'info');
         }
-    }, 2500);
+    }, 4000);
 
     try {
         const baseUrl = getApiBaseUrl();
         const response = await fetch(`${baseUrl}${endpoint}`, config);
-        clearTimeout(coldStartTimer);
         
         // Handle 401 Unauthorized / 403 Forbidden
         if (response.status === 401 || response.status === 403) {
             setAuthToken(null);
             setAuthUser(null);
-            window.location.hash = '#login';
             throw new Error('Session expired or unauthorized. Please log in again.');
         }
 
@@ -94,6 +92,8 @@ async function request(endpoint, options = {}) {
     } catch (err) {
         console.error(`API request error on ${endpoint}:`, err);
         throw err;
+    } finally {
+        clearTimeout(coldStartTimer);
     }
 }
 
@@ -108,7 +108,7 @@ async function uploadRequest(endpoint, formData) {
         if (typeof window !== 'undefined' && window.showToast) {
             window.showToast('Connecting to cloud backend... (Render instance waking up)', 'info');
         }
-    }, 2500);
+    }, 4000);
 
     try {
         const baseUrl = getApiBaseUrl();
@@ -117,12 +117,10 @@ async function uploadRequest(endpoint, formData) {
             headers,
             body: formData
         });
-        clearTimeout(coldStartTimer);
 
         if (response.status === 401 || response.status === 403) {
             setAuthToken(null);
             setAuthUser(null);
-            window.location.hash = '#login';
             throw new Error('Session expired or unauthorized. Please log in again.');
         }
 
@@ -143,6 +141,8 @@ async function uploadRequest(endpoint, formData) {
     } catch (err) {
         console.error(`Upload error on ${endpoint}:`, err);
         throw err;
+    } finally {
+        clearTimeout(coldStartTimer);
     }
 }
 
