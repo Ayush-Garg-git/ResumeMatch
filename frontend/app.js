@@ -1262,11 +1262,23 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
     `;
 }
 
+// Helper to get array of skill names
+function getProfileSkillsList(p) {
+    if (!p) return [];
+    if (p.skills && p.skills.length > 0) {
+        return p.skills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || (s.skill && s.skill.name) || '')).filter(Boolean);
+    }
+    if (p.verifiedSkills && p.verifiedSkills.length > 0) {
+        return p.verifiedSkills;
+    }
+    return [];
+}
+
 // 3. Profile & Resumes View (Truth Bank Review & Confirmation)
 function renderProfileView() {
     const p = state.profile || {};
     const resumes = state.resumes || [];
-    const verifiedSkills = p.verifiedSkills || ['Java 21', 'Spring Boot', 'PostgreSQL', 'Docker', 'REST APIs', 'Git', 'JUnit 5'];
+    const verifiedSkills = getProfileSkillsList(p);
 
     return `
         <div class="view-header">
@@ -1284,7 +1296,7 @@ function renderProfileView() {
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                 <div>
                     <h3 style="font-size: 1.25rem; margin-bottom: 0.25rem;"><i class="fa-solid fa-shield-halved mr-2 text-success"></i>Checkpoint: Confirm Your Truth Bank</h3>
-                    <p class="text-secondary" style="font-size: 0.85rem;">Review extracted skills. Downstream tailoring strictly relies on this confirmed data.</p>
+                    <p class="text-secondary" style="font-size: 0.85rem;">Review extracted skills (${verifiedSkills.length} verified). Downstream tailoring strictly relies on this confirmed data.</p>
                 </div>
                 <button class="btn ${state.truthBankConfirmed ? 'btn-outline-success' : 'btn-primary'}" id="btn-confirm-truth-bank">
                     <i class="fa-solid fa-circle-check mr-2"></i> ${state.truthBankConfirmed ? 'Truth Bank Confirmed ✓' : 'Confirm Truth Bank'}
@@ -1294,7 +1306,9 @@ function renderProfileView() {
             <div style="margin-bottom: 1.25rem;">
                 <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block;">Confirmed Skill Registry</label>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;" id="truth-skills-container">
-                    ${verifiedSkills.map(sk => `
+                    ${verifiedSkills.length === 0 ? `
+                        <span class="text-secondary" style="font-size: 0.85rem; padding: 0.4rem 0;">No skills extracted yet. Upload your resume above to extract all competencies!</span>
+                    ` : verifiedSkills.map(sk => `
                         <span class="editable-skill-chip">
                             <span>${sk}</span>
                             <i class="fa-solid fa-xmark chip-remove" data-skill="${sk}" title="Remove skill"></i>
@@ -2019,27 +2033,42 @@ function attachAppEvents(route) {
         });
     }
 
-    // Add Skill to Truth Bank (triggers invalidation)
+    // Add Skill to Truth Bank (triggers invalidation & persists)
     const btnAddTruthSkill = document.getElementById('btn-add-truth-skill');
     if (btnAddTruthSkill) {
-        btnAddTruthSkill.addEventListener('click', () => {
+        btnAddTruthSkill.addEventListener('click', async () => {
             const newSkill = prompt('Enter verified skill to add to your Truth Bank:');
             if (newSkill && newSkill.trim()) {
                 if (!state.profile) state.profile = {};
-                if (!state.profile.verifiedSkills) state.profile.verifiedSkills = ['Java 21', 'Spring Boot', 'PostgreSQL'];
-                state.profile.verifiedSkills.push(newSkill.trim());
+                if (!state.profile.skills) state.profile.skills = [];
+                const skillObj = { name: newSkill.trim(), category: 'TECHNICAL', selfAssessedLevel: 'PROFICIENT' };
+                state.profile.skills.push(skillObj);
+                try {
+                    await api.updateProfile(state.profile);
+                    showToast(`Added "${newSkill.trim()}" to your Truth Bank!`, 'success');
+                } catch (e) {
+                    console.warn(e);
+                }
                 invalidateTruthBankState();
                 renderApp();
             }
         });
     }
 
-    // Remove Skill from Truth Bank (triggers invalidation)
+    // Remove Skill from Truth Bank (triggers invalidation & persists)
     document.querySelectorAll('.chip-remove').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
             const skill = btn.getAttribute('data-skill');
-            if (state.profile?.verifiedSkills) {
-                state.profile.verifiedSkills = state.profile.verifiedSkills.filter(s => s !== skill);
+            if (state.profile?.skills) {
+                state.profile.skills = state.profile.skills.filter(s => {
+                    const sName = typeof s === 'string' ? s : (s.name || s.skillName || '');
+                    return sName !== skill;
+                });
+                try {
+                    await api.updateProfile(state.profile);
+                } catch (e) {
+                    console.warn(e);
+                }
                 invalidateTruthBankState();
                 renderApp();
             }
