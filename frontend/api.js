@@ -4,7 +4,26 @@
  * Powered by Google Gemini 3.7 Flash
  */
 
-const API_BASE_URL = 'http://localhost:8080/api/v1';
+const DEFAULT_REMOTE_BACKEND = 'https://jobreadiness-backend.onrender.com/api/v1';
+
+export const getApiBaseUrl = () => {
+    if (typeof window !== 'undefined') {
+        const customUrl = localStorage.getItem('jr_api_base_url');
+        if (customUrl) return customUrl;
+        if (window.API_BASE_URL) return window.API_BASE_URL;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return 'http://localhost:8080/api/v1';
+        }
+    }
+    return DEFAULT_REMOTE_BACKEND;
+};
+
+export const setApiBaseUrl = (url) => {
+    if (url) localStorage.setItem('jr_api_base_url', url);
+    else localStorage.removeItem('jr_api_base_url');
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Session Storage
 export const getAuthToken = () => localStorage.getItem('jr_token');
@@ -40,7 +59,8 @@ async function request(endpoint, options = {}) {
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+        const baseUrl = getApiBaseUrl();
+        const response = await fetch(`${baseUrl}${endpoint}`, config);
         
         // Handle 401 Unauthorized / 403 Forbidden
         if (response.status === 401 || response.status === 403) {
@@ -78,7 +98,8 @@ async function uploadRequest(endpoint, formData) {
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        const baseUrl = getApiBaseUrl();
+        const response = await fetch(`${baseUrl}${endpoint}`, {
             method: 'POST',
             headers,
             body: formData
