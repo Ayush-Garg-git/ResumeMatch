@@ -319,6 +319,50 @@ Requirements:
         });
     }
 
+    // Smart Skill Modal Submission (with Predefined Suggestions & Section Categorization)
+    const skillForm = document.getElementById('skill-form');
+    if (skillForm) {
+        skillForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const skillInput = document.getElementById('skill-modal-input');
+            const catInput = document.getElementById('skill-modal-category');
+            const skillName = skillInput ? skillInput.value.trim() : '';
+            const category = catInput ? catInput.value.trim() : 'Languages';
+
+            if (skillName) {
+                if (!state.profile) state.profile = {};
+                if (!state.profile.skills) state.profile.skills = [];
+
+                const existing = state.profile.skills.find(s => {
+                    const name = typeof s === 'string' ? s : (s.name || s.skillName || '');
+                    return name.toLowerCase() === skillName.toLowerCase();
+                });
+
+                if (!existing) {
+                    state.profile.skills.push({
+                        name: skillName,
+                        category: category,
+                        selfAssessedLevel: 'PROFICIENT'
+                    });
+                    try {
+                        if (api.isLoggedIn()) {
+                            await api.updateProfile(state.profile);
+                        }
+                        showToast(`Added "${skillName}" to ${category}!`, 'success');
+                    } catch (err) {
+                        console.warn(err);
+                    }
+                    invalidateTruthBankState();
+                    closeModal('skill-modal');
+                    renderApp();
+                } else {
+                    showToast(`"${skillName}" is already in your Truth Bank!`, 'info');
+                    closeModal('skill-modal');
+                }
+            }
+        });
+    }
+
     // Proof Submission Form
     const proofForm = document.getElementById('proof-form');
     if (proofForm) {
@@ -1282,31 +1326,70 @@ function getProfileSkillsList(p) {
     ];
 }
 
+// Predefined skills registry and metadata by category
+const PREDEFINED_SKILLS_BY_CATEGORY = {
+    'Languages': {
+        icon: 'fa-solid fa-code',
+        color: '#60A5FA',
+        skills: ['Java', 'Python', 'C++', 'JavaScript', 'TypeScript', 'C', 'Go', 'Rust', 'SQL', 'HTML5', 'CSS3', 'Bash / Shell', 'Kotlin', 'Swift', 'PHP', 'Ruby', 'R']
+    },
+    'Backend & Web': {
+        icon: 'fa-solid fa-server',
+        color: '#34D399',
+        skills: ['Spring Boot', 'Spring MVC', 'REST APIs', 'Hibernate / JPA', 'JDBC', 'Node.js', 'Express.js', 'FastAPI', 'Django', 'GraphQL', 'Microservices', 'WebSockets', 'Tailwind CSS']
+    },
+    'Databases': {
+        icon: 'fa-solid fa-database',
+        color: '#FBBF24',
+        skills: ['PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'SQLite', 'Oracle Database', 'Firebase Firestore', 'DynamoDB', 'Cassandra', 'Data Integrity & Validation', 'Database Indexing']
+    },
+    'Networking': {
+        icon: 'fa-solid fa-network-wired',
+        color: '#38BDF8',
+        skills: ['TCP/IP', 'LAN / WAN', 'DNS & DHCP', 'Network Protocols', 'Routers & Switches', 'Network Diagnostics (ping, tracert)', 'Structured Cabling', 'VPN & Firewalls', 'HTTP/HTTPS', 'Load Balancing']
+    },
+    'Hardware & Systems': {
+        icon: 'fa-solid fa-microchip',
+        color: '#F472B6',
+        skills: ['PC & Server Assembly', 'Hardware Troubleshooting', 'Component Diagnostics (CPU/RAM/PSU)', 'BIOS/UEFI Configuration', 'Motherboard Architecture', 'Peripherals & Storage Setup', 'IoT & Sensors', 'Embedded Systems']
+    },
+    'Operating Systems': {
+        icon: 'fa-brands fa-linux',
+        color: '#A78BFA',
+        skills: ['Linux (CLI & Admin)', 'Ubuntu', 'Red Hat / CentOS', 'Debian', 'Windows Server', 'Windows 10/11', 'Unix', 'macOS', 'System Troubleshooting']
+    },
+    'Tools & Cloud': {
+        icon: 'fa-solid fa-screwdriver-wrench',
+        color: '#818CF8',
+        skills: ['Git & GitHub', 'VS Code', 'Postman', 'Docker', 'Docker Compose', 'Kubernetes', 'Vercel', 'Google Cloud Platform (GCP)', 'AWS', 'Google Gemini AI', 'Google Cloud Vision API', 'Maven', 'CI/CD (GitHub Actions)']
+    }
+};
+
 // Helper to get skill category & icon metadata
 function getSkillMetadata(skillName) {
-    const s = (skillName || '').toLowerCase();
-    if (s.includes('java') || s.includes('python') || s.includes('c++') || s.includes('javascript') || s.includes('typescript') || s.includes('golang') || s.includes('rust') || s.includes('php') || s.includes('ruby')) {
+    const s = (skillName || '').toLowerCase().trim();
+    if (s.includes('java') || s.includes('python') || s.includes('c++') || s.includes('javascript') || s.includes('typescript') || s.includes('golang') || s.includes('rust') || s.includes('php') || s.includes('ruby') || s.includes('kotlin') || s.includes('swift')) {
         return { category: 'Languages', icon: 'fa-solid fa-code', color: '#60A5FA' };
     }
     if (s.includes('spring') || s.includes('rest') || s.includes('hibernate') || s.includes('jpa') || s.includes('jdbc') || s.includes('node') || s.includes('express') || s.includes('django') || s.includes('fastapi') || s.includes('mvc') || s.includes('html') || s.includes('css')) {
         return { category: 'Backend & Web', icon: 'fa-solid fa-server', color: '#34D399' };
     }
-    if (s.includes('sql') || s.includes('postgres') || s.includes('mysql') || s.includes('mongo') || s.includes('redis') || s.includes('oracle') || s.includes('dbms') || s.includes('database')) {
+    if (s.includes('sql') || s.includes('postgres') || s.includes('mysql') || s.includes('mongo') || s.includes('redis') || s.includes('oracle') || s.includes('dbms') || s.includes('database') || s.includes('query') || s.includes('validation')) {
         return { category: 'Databases', icon: 'fa-solid fa-database', color: '#FBBF24' };
     }
-    if (s.includes('tcp') || s.includes('lan') || s.includes('dns') || s.includes('dhcp') || s.includes('network') || s.includes('router') || s.includes('switch') || s.includes('protocol') || s.includes('ipconfig') || s.includes('ping') || s.includes('cabling')) {
+    if (s.includes('tcp') || s.includes('lan') || s.includes('dns') || s.includes('dhcp') || s.includes('network') || s.includes('router') || s.includes('switch') || s.includes('protocol') || s.includes('ipconfig') || s.includes('ping') || s.includes('tracert') || s.includes('nslookup') || s.includes('cabling')) {
         return { category: 'Networking', icon: 'fa-solid fa-network-wired', color: '#38BDF8' };
     }
-    if (s.includes('hardware') || s.includes('assembly') || s.includes('cpu') || s.includes('ram') || s.includes('motherboard') || s.includes('bios') || s.includes('uefi') || s.includes('psu') || s.includes('component') || s.includes('iot') || s.includes('sensor')) {
+    if (s.includes('hardware') || s.includes('assembly') || s.includes('cpu') || s.includes('ram') || s.includes('motherboard') || s.includes('bios') || s.includes('uefi') || s.includes('psu') || s.includes('component') || s.includes('processor') || s.includes('iot') || s.includes('sensor') || s.includes('peripheral') || s.includes('storage')) {
         return { category: 'Hardware & Systems', icon: 'fa-solid fa-microchip', color: '#F472B6' };
     }
-    if (s.includes('linux') || s.includes('windows') || s.includes('unix') || s.includes('macos') || s.includes('ubuntu') || s.includes('os') || s.includes('operating')) {
+    if (s.includes('linux') || s.includes('windows') || s.includes('unix') || s.includes('macos') || s.includes('ubuntu') || s.includes('os') || s.includes('cli') || s.includes('operating')) {
         return { category: 'Operating Systems', icon: 'fa-brands fa-linux', color: '#A78BFA' };
     }
     return { category: 'Tools & Cloud', icon: 'fa-solid fa-screwdriver-wrench', color: '#818CF8' };
 }
 
-// 3. Profile & Resumes View (Truth Bank Review & Confirmation)
+// 3. Profile & Resumes View (Truth Bank Review & Categorized Sections)
 function renderProfileView() {
     const p = state.profile || {};
     const resumes = state.resumes || [];
@@ -1315,15 +1398,11 @@ function renderProfileView() {
     const activeFilter = state.skillCategoryFilter || 'ALL';
     const searchQuery = (state.skillSearchQuery || '').toLowerCase();
 
-    // Group & filter skills
-    const filteredSkills = verifiedSkills.filter(sk => {
-        const meta = getSkillMetadata(sk);
-        const matchesCategory = (activeFilter === 'ALL') || (meta.category === activeFilter);
-        const matchesSearch = !searchQuery || sk.toLowerCase().includes(searchQuery);
-        return matchesCategory && matchesSearch;
-    });
+    const categoryList = Object.keys(PREDEFINED_SKILLS_BY_CATEGORY);
+    const filterTabs = ['ALL', ...categoryList];
 
-    const categories = ['ALL', 'Languages', 'Backend & Web', 'Databases', 'Networking', 'Hardware & Systems', 'Operating Systems', 'Tools & Cloud'];
+    // Filter categories to render
+    const categoriesToRender = activeFilter === 'ALL' ? categoryList : [activeFilter];
 
     return `
         <div class="view-header">
@@ -1349,7 +1428,7 @@ function renderProfileView() {
                         </span>
                     </div>
                     <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0;">
-                        Every skill extracted from your master resume is categorized and locked for truth-first matching.
+                        Every skill is organized into categorized sections with predefined suggestions and section management.
                     </p>
                 </div>
                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
@@ -1365,9 +1444,8 @@ function renderProfileView() {
 
             <!-- Category Filter Tabs -->
             <div class="skill-category-tabs">
-                ${categories.map(cat => {
+                ${filterTabs.map(cat => {
                     const count = cat === 'ALL' ? verifiedSkills.length : verifiedSkills.filter(sk => getSkillMetadata(sk).category === cat).length;
-                    if (count === 0 && cat !== 'ALL') return '';
                     return `
                         <button class="skill-tab-btn ${activeFilter === cat ? 'active' : ''}" data-cat="${cat}">
                             ${cat} <span style="opacity: 0.7; font-size: 0.75rem;">(${count})</span>
@@ -1376,35 +1454,58 @@ function renderProfileView() {
                 }).join('')}
             </div>
 
-            <!-- Skills Showcase Grid -->
-            <div class="skills-grid-showcase" id="truth-skills-container">
-                ${filteredSkills.length === 0 ? `
-                    <div style="grid-column: 1 / -1; padding: 2rem; text-align: center; background: rgba(255,255,255,0.02); border-radius: var(--radius-md); border: 1px dashed rgba(255,255,255,0.1);">
-                        <i class="fa-solid fa-sparkles text-muted mb-2" style="font-size: 1.5rem;"></i>
-                        <p class="text-secondary" style="font-size: 0.9rem; margin-bottom: 0;">No skills match the current filter. Upload your resume or add custom skills below!</p>
-                    </div>
-                ` : filteredSkills.map(sk => {
-                    const meta = getSkillMetadata(sk);
+            <!-- Categorized Skills Sections -->
+            <div id="truth-skills-container">
+                ${categoriesToRender.map(cat => {
+                    const catMeta = PREDEFINED_SKILLS_BY_CATEGORY[cat] || { icon: 'fa-solid fa-tag', color: '#818CF8' };
+                    const catSkills = verifiedSkills.filter(sk => {
+                        const meta = getSkillMetadata(sk);
+                        const matchesCat = meta.category === cat;
+                        const matchesSearch = !searchQuery || sk.toLowerCase().includes(searchQuery);
+                        return matchesCat && matchesSearch;
+                    });
+
                     return `
-                        <div class="premium-skill-card">
-                            <div class="skill-info-left">
-                                <div class="skill-category-icon" style="color: ${meta.color}; background: ${meta.color}15; border-color: ${meta.color}30;">
-                                    <i class="${meta.icon}"></i>
+                        <div class="skill-category-group">
+                            <div class="skill-category-header">
+                                <div class="skill-category-title">
+                                    <i class="${catMeta.icon}" style="color: ${catMeta.color};"></i>
+                                    <span>${cat}</span>
+                                    <span class="skill-category-count-badge">${catSkills.length} skills</span>
                                 </div>
-                                <div class="skill-title-group">
-                                    <span class="skill-name-text" title="${sk}">${sk}</span>
-                                    <span class="skill-tag-category">${meta.category}</span>
-                                </div>
+                                <button class="btn-add-section-skill" data-cat="${cat}">
+                                    <i class="fa-solid fa-plus mr-1"></i> Add ${cat} Skill
+                                </button>
                             </div>
-                            <button class="skill-delete-btn chip-remove" data-skill="${sk}" title="Remove ${sk}">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
+
+                            <div class="skills-grid-showcase">
+                                ${catSkills.length === 0 ? `
+                                    <div style="grid-column: 1 / -1; padding: 1rem; text-align: center; background: rgba(255,255,255,0.01); border-radius: var(--radius-md); border: 1px dashed rgba(255,255,255,0.06);">
+                                        <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0.5rem;">No ${cat} skills added yet.</p>
+                                        <button class="btn-add-section-skill" data-cat="${cat}" style="margin: 0 auto;">
+                                            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Pick from ${cat} Suggestions
+                                        </button>
+                                    </div>
+                                ` : catSkills.map(sk => `
+                                    <div class="premium-skill-card">
+                                        <div class="skill-info-left">
+                                            <div class="skill-category-icon" style="color: ${catMeta.color}; background: ${catMeta.color}15; border-color: ${catMeta.color}30;">
+                                                <i class="${catMeta.icon}"></i>
+                                            </div>
+                                            <div class="skill-title-group">
+                                                <span class="skill-name-text" title="${sk}">${sk}</span>
+                                                <span class="skill-tag-category">${cat}</span>
+                                            </div>
+                                        </div>
+                                        <button class="skill-delete-btn chip-remove" data-skill="${sk}" title="Remove ${sk}">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     `;
                 }).join('')}
-                <div class="btn-add-skill-card" id="btn-add-truth-skill">
-                    <i class="fa-solid fa-plus-circle"></i> Add Skill
-                </div>
             </div>
         </div>
 
@@ -2085,6 +2186,45 @@ function buildAtsResumeHtml() {
     `;
 }
 
+// Open Smart Add Skill Modal with Predefined Category Chips
+function openSkillModalForCategory(cat) {
+    const titleEl = document.getElementById('skill-modal-title');
+    const catInput = document.getElementById('skill-modal-category');
+    const skillInput = document.getElementById('skill-modal-input');
+    const chipsContainer = document.getElementById('predefined-chips-container');
+
+    if (titleEl) titleEl.innerText = `Add ${cat} Skill`;
+    if (catInput) catInput.value = cat;
+    if (skillInput) {
+        skillInput.value = '';
+        skillInput.placeholder = `e.g. Type any ${cat} skill...`;
+    }
+
+    if (chipsContainer) {
+        const catData = PREDEFINED_SKILLS_BY_CATEGORY[cat] || { skills: [] };
+        chipsContainer.innerHTML = catData.skills.map(sk => `
+            <button type="button" class="predefined-skill-pill" data-skill="${sk}">
+                <i class="fa-solid fa-plus-circle" style="font-size: 0.75rem; opacity: 0.7;"></i> ${sk}
+            </button>
+        `).join('');
+
+        chipsContainer.querySelectorAll('.predefined-skill-pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                const skName = pill.getAttribute('data-skill');
+                if (skillInput) skillInput.value = skName;
+                chipsContainer.querySelectorAll('.predefined-skill-pill').forEach(p => p.classList.remove('selected'));
+                pill.classList.add('selected');
+            });
+        });
+    }
+
+    openModal('skill-modal');
+    setTimeout(() => {
+        if (skillInput) skillInput.focus();
+    }, 100);
+}
+window.openSkillModalForCategory = openSkillModalForCategory;
+
 // Attach Event Handlers for Views
 function attachAppEvents(route) {
     const handleLogout = () => {
@@ -2145,25 +2285,19 @@ function attachAppEvents(route) {
         });
     }
 
-    // Add Skill to Truth Bank (triggers invalidation & persists)
+    // Section Add Skill Triggers (opens Smart Skill Modal with Predefined Suggestions)
+    document.querySelectorAll('.btn-add-section-skill').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const cat = btn.getAttribute('data-cat') || 'Languages';
+            openSkillModalForCategory(cat);
+        });
+    });
+
     const btnAddTruthSkill = document.getElementById('btn-add-truth-skill');
     if (btnAddTruthSkill) {
-        btnAddTruthSkill.addEventListener('click', async () => {
-            const newSkill = prompt('Enter verified skill to add to your Truth Bank:');
-            if (newSkill && newSkill.trim()) {
-                if (!state.profile) state.profile = {};
-                if (!state.profile.skills) state.profile.skills = [];
-                const skillObj = { name: newSkill.trim(), category: 'TECHNICAL', selfAssessedLevel: 'PROFICIENT' };
-                state.profile.skills.push(skillObj);
-                try {
-                    await api.updateProfile(state.profile);
-                    showToast(`Added "${newSkill.trim()}" to your Truth Bank!`, 'success');
-                } catch (e) {
-                    console.warn(e);
-                }
-                invalidateTruthBankState();
-                renderApp();
-            }
+        btnAddTruthSkill.addEventListener('click', () => {
+            openSkillModalForCategory('Languages');
         });
     }
 
