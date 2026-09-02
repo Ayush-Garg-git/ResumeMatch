@@ -127,12 +127,12 @@
                 <h3><i class="fa-solid fa-file-arrow-up mr-2 text-gradient"></i>Upload Master Resume</h3>
                 <button class="modal-close" data-target="resume-modal"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="file-drop-area" id="resume-drop-area">
+            <div class="file-drop-area" id="resume-drop-area" style="cursor: pointer;">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
                 <h4>Drag & Drop Your Resume</h4>
-                <p class="text-secondary mt-2" style="font-size: 0.85rem;">Supports PDF or TXT documents</p>
+                <p class="text-secondary mt-2" style="font-size: 0.85rem;">Supports PDF, DOCX, or TXT documents</p>
                 <input type="file" id="resume-file-input" class="hidden" accept=".pdf,.txt,.docx">
-                <button type="button" class="btn btn-secondary btn-sm mt-3" onclick="document.getElementById('resume-file-input').click()">
+                <button type="button" class="btn btn-secondary btn-sm mt-3" id="btn-browse-resume">
                     Browse Files
                 </button>
             </div>

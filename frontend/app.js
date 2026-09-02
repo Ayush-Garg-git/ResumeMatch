@@ -68,6 +68,34 @@ function navigateTo(route) {
     window.location.hash = `#${route}`;
 }
 
+async function performReadinessEvaluation() {
+    if (!state.activeJobId) {
+        showToast('Please select or add a target job first.', 'warning');
+        navigateTo('jobs');
+        return;
+    }
+    showToast('Evaluating 4-Bucket readiness against job requirements...', 'info');
+    state.loading = true;
+    renderApp();
+    try {
+        await api.performReadiness(state.activeJobId);
+        showToast('4-Bucket Readiness analysis complete!', 'success');
+        await loadInitialData();
+    } catch (err) {
+        showToast(err.message || 'Evaluation failed', 'error');
+    } finally {
+        state.loading = false;
+        renderApp();
+    }
+}
+
+// Expose utilities on window for inline HTML attributes
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.showToast = showToast;
+window.navigateTo = navigateTo;
+window.performReadinessEvaluation = performReadinessEvaluation;
+
 // Setup Event Listeners
 function setupGlobalEvents() {
     window.addEventListener('hashchange', renderApp);
@@ -215,8 +243,50 @@ Requirements:
         });
     }
 
-    // Resume File Upload (with OCR/scanned check feedback)
+    // Resume File Upload (with drag-and-drop & browse button)
     const fileInput = document.getElementById('resume-file-input');
+    const dropArea = document.getElementById('resume-drop-area');
+    const btnBrowse = document.getElementById('btn-browse-resume');
+
+    if (btnBrowse && fileInput) {
+        btnBrowse.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
+
+    if (dropArea && fileInput) {
+        dropArea.addEventListener('click', (e) => {
+            if (e.target !== btnBrowse && !btnBrowse?.contains(e.target)) {
+                fileInput.click();
+            }
+        });
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover'), false);
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        }, false);
+    }
+
     if (fileInput) {
         fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -226,6 +296,7 @@ Requirements:
             if (statusEl) statusEl.classList.remove('hidden');
 
             try {
+                showToast('Uploading and parsing resume with AI...', 'info');
                 await api.uploadResume(file);
                 showToast('Resume parsed! Please review & confirm your Truth Bank.', 'success');
                 closeModal('resume-modal');
