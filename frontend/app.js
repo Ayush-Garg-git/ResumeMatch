@@ -505,16 +505,32 @@ async function loadInitialData() {
         state.profile = profile;
         state.resumes = resumes || [];
 
-        // Auto-heal: If user has uploaded resumes but profile has 0 projects, fetch resume text and populate projects
-        if (state.resumes.length > 0 && (!state.profile?.projects || state.profile.projects.length === 0)) {
+        // Auto-heal: If user has uploaded resumes, merge all extracted projects from resume text
+        if (state.resumes.length > 0) {
             try {
                 const latestResume = await api.getResume(state.resumes[0].id).catch(() => null);
                 if (latestResume?.rawText) {
                     const extractedProjects = extractProjectsFromResumeText(latestResume.rawText);
                     if (extractedProjects.length > 0) {
                         if (!state.profile) state.profile = {};
-                        state.profile.projects = extractedProjects;
-                        await api.updateProfile(state.profile).catch(() => {});
+                        if (!Array.isArray(state.profile.projects)) state.profile.projects = [];
+
+                        const existingTitles = new Set(state.profile.projects.map(p => (p.title || '').toLowerCase().trim()));
+                        let addedAny = false;
+
+                        for (const ep of extractedProjects) {
+                            const epClean = (ep.title || '').toLowerCase().trim();
+                            const alreadyExists = Array.from(existingTitles).some(et => et.includes(epClean) || epClean.includes(et));
+                            if (!alreadyExists) {
+                                state.profile.projects.push(ep);
+                                existingTitles.add(epClean);
+                                addedAny = true;
+                            }
+                        }
+
+                        if (addedAny && api.isLoggedIn()) {
+                            await api.updateProfile(state.profile).catch(() => {});
+                        }
                     }
                 }
             } catch (err) {
@@ -522,7 +538,7 @@ async function loadInitialData() {
             }
         }
 
-        // Auto-heal: If user has uploaded resumes but profile has 0 skills, populate skills
+        // Auto-heal: If user has uploaded resumes and profile has 0 skills, populate skills
         if (state.resumes.length > 0 && (!state.profile?.skills || state.profile.skills.length === 0)) {
             try {
                 const latestResume = await api.getResume(state.resumes[0].id).catch(() => null);
@@ -535,7 +551,9 @@ async function loadInitialData() {
                             category: getSkillMetadata(s).category,
                             selfAssessedLevel: 'PROFICIENT'
                         }));
-                        await api.updateProfile(state.profile).catch(() => {});
+                        if (api.isLoggedIn()) {
+                            await api.updateProfile(state.profile).catch(() => {});
+                        }
                     }
                 }
             } catch (err) {
