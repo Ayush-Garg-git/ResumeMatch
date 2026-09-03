@@ -5,6 +5,20 @@
 
 import api, { getActiveJobId, setActiveJobId } from './api.js';
 
+// Theme Management (Initial Default: 'light' with premium soft colors)
+const initialTheme = localStorage.getItem('copilot_theme') || 'light';
+document.documentElement.setAttribute('data-theme', initialTheme);
+
+function toggleAppTheme() {
+    const active = document.documentElement.getAttribute('data-theme') || 'light';
+    const target = active === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', target);
+    localStorage.setItem('copilot_theme', target);
+    showToast(`Switched to ${target === 'light' ? 'Soft Light' : 'Sleek Dark'} theme`, 'info');
+    renderApp();
+}
+window.toggleAppTheme = toggleAppTheme;
+
 // Application State
 const state = {
     user: api.getUser(),
@@ -837,11 +851,11 @@ async function renderApp() {
                 <div class="header-active-job">
                     <span class="text-muted"><i class="fa-solid fa-crosshairs mr-1"></i> Target Role:</span>
                     ${state.jobs.length === 0 ? `
-                        <span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.3rem 0.75rem;">
+                        <span class="badge" style="background: var(--bg-glass); color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.3rem 0.75rem;">
                             No Active Job
                         </span>
                     ` : `
-                        <select id="active-job-select" style="background: transparent; border: none; color: #FFF; font-weight: 600; cursor: pointer; outline: none;">
+                        <select id="active-job-select" style="background: transparent; border: none; color: var(--text-primary); font-weight: 600; cursor: pointer; outline: none;">
                             ${state.jobs.map(j => `<option value="${j.id}" ${j.id === state.activeJobId ? 'selected' : ''}>${j.title} (${j.company || 'Direct'})</option>`).join('')}
                         </select>
                         <button class="btn btn-secondary btn-sm" id="btn-header-new-job" title="Add Another Target Job" style="padding: 0.2rem 0.6rem;">
@@ -850,8 +864,12 @@ async function renderApp() {
                     `}
                 </div>
 
-                <!-- User Profile Badge -->
+                <!-- User Profile Badge & Theme Toggle -->
                 <div class="header-actions">
+                    <button class="theme-toggle-btn" id="btn-theme-toggle" onclick="toggleAppTheme()" title="Switch Light/Dark Theme">
+                        <i class="fa-solid ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>
+                        <span class="theme-label">${document.documentElement.getAttribute('data-theme') === 'dark' ? 'Dark' : 'Light'}</span>
+                    </button>
                     <div class="user-profile-badge">
                         <div class="user-avatar">${(state.user?.firstName || 'A')[0].toUpperCase()}</div>
                         <span>${state.user?.firstName || (state.isDemoMode ? 'Alex Chen' : 'Student')}</span>
@@ -987,7 +1005,11 @@ function renderLandingPage() {
                     <div class="brand-icon"><i class="fa-solid fa-compass"></i></div>
                     <div class="brand-title">Job Readiness Copilot</div>
                 </div>
-                <div>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <button class="theme-toggle-btn" onclick="toggleAppTheme()" title="Switch Light/Dark Theme">
+                        <i class="fa-solid ${document.documentElement.getAttribute('data-theme') === 'dark' ? 'fa-sun' : 'fa-moon'}"></i>
+                        <span class="theme-label">${document.documentElement.getAttribute('data-theme') === 'dark' ? 'Dark' : 'Light'}</span>
+                    </button>
                     <button class="btn btn-secondary mr-2" id="btn-open-login">Sign In</button>
                     <button class="btn btn-primary" id="btn-open-signup">Get Started Free</button>
                 </div>
@@ -1686,7 +1708,7 @@ function renderProfileView() {
 
                             <div class="skills-grid-showcase">
                                 ${catSkills.length === 0 ? `
-                                    <div style="grid-column: 1 / -1; padding: 1rem; text-align: center; background: rgba(255,255,255,0.01); border-radius: var(--radius-md); border: 1px dashed rgba(255,255,255,0.06);">
+                                    <div style="grid-column: 1 / -1; padding: 1rem; text-align: center; background: var(--bg-glass); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
                                         <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0.5rem;">No ${cat} skills added yet.</p>
                                         <button class="btn-add-section-skill" data-cat="${cat}" style="margin: 0 auto;">
                                             <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Pick from ${cat} Suggestions
@@ -1756,7 +1778,7 @@ function renderProfileView() {
                 ` : `
                     <div style="display: flex; flex-direction: column; gap: 1rem;">
                         ${resumes.map(r => `
-                            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="background: var(--bg-glass); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <div style="font-weight: 600;">${r.fileName || 'Master Resume.pdf'}</div>
                                     <div class="text-secondary" style="font-size: 0.8rem;">Uploaded on ${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : 'Recent'}</div>
@@ -2039,7 +2061,7 @@ function renderEvidenceView(activeJob) {
                     ${(skills.length > 0 ? skills : reqs.map(r => ({ skillName: r.skillName || r.description, status: 'GENUINE_GAP', importance: r.type, reasoning: 'Requirement extracted from JD', existingEvidenceDesc: null }))).map(item => {
                         const structInfo = item.gapType === 'STRUCTURAL_CONSTRAINT' ? getStructuralGuidance(item.skillName, item.reasoning) : null;
                         return `
-                            <div class="evidence-gap-grid" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
+                            <div class="evidence-gap-grid" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; box-shadow: var(--shadow-sm);">
                                 <!-- Left: Job Requirement Column -->
                                 <div class="evidence-side-card">
                                     <div>
@@ -2124,7 +2146,7 @@ function renderEvidenceView(activeJob) {
             ` : `
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
                     ${questions.map(q => `
-                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem;">
+                        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; box-shadow: var(--shadow-sm);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                                 <div>
                                     <span class="badge badge-hidden mb-2">${q.targetSkill || 'Hidden Skill'}</span>
@@ -2189,11 +2211,11 @@ function renderTailoringView(activeJob) {
         ${staleNoticeHtml}
 
         <!-- Strict Sourcing Guarantee Banner -->
-        <div class="card mb-6" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25);">
+        <div class="card mb-6" style="background: var(--bucket-demonstrated-bg); border: 1px solid var(--bucket-demonstrated-border);">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <i class="fa-solid fa-shield-check text-success" style="font-size: 1.5rem;"></i>
+                <i class="fa-solid fa-shield-check" style="color: var(--bucket-demonstrated); font-size: 1.5rem;"></i>
                 <div>
-                    <h4 style="color: #6EE7B7; margin-bottom: 0.2rem;">Strict Sourcing Guarantee (Zero Hallucinations)</h4>
+                    <h4 style="color: var(--bucket-demonstrated); margin-bottom: 0.2rem;">Strict Sourcing Guarantee (Zero Hallucinations)</h4>
                     <p class="text-secondary" style="font-size: 0.85rem; margin: 0;">
                         Tailored resume bullets are drawn exclusively from your resume-verified coursework and projects. Self-reported Q&A answers are never injected into your exported resume.
                     </p>
