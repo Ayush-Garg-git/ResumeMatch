@@ -275,10 +275,41 @@ Requirements:
 
             try {
                 showToast('Uploading and parsing resume with AI...', 'info');
-                await api.uploadResume(file);
+                const uploadedResume = await api.uploadResume(file);
                 showToast('Resume parsed! Please review & confirm your Truth Bank.', 'success');
                 closeModal('resume-modal');
                 await loadInitialData();
+
+                // Dual-layer fallback: ensure projects & skills are populated from resume text
+                const rawText = uploadedResume?.rawText || (state.resumes?.[0]?.rawText) || '';
+                let profileNeedsUpdate = false;
+
+                if (rawText && (!state.profile?.projects || state.profile.projects.length === 0)) {
+                    const extractedProjects = extractProjectsFromResumeText(rawText);
+                    if (extractedProjects.length > 0) {
+                        if (!state.profile) state.profile = {};
+                        state.profile.projects = extractedProjects;
+                        profileNeedsUpdate = true;
+                    }
+                }
+
+                if (rawText && (!state.profile?.skills || state.profile.skills.length === 0)) {
+                    const extractedSkills = extractSkillsFromResumeText(rawText);
+                    if (extractedSkills.length > 0) {
+                        if (!state.profile) state.profile = {};
+                        state.profile.skills = extractedSkills.map(s => ({
+                            name: s,
+                            category: getSkillMetadata(s).category,
+                            selfAssessedLevel: 'PROFICIENT'
+                        }));
+                        profileNeedsUpdate = true;
+                    }
+                }
+
+                if (profileNeedsUpdate && api.isLoggedIn()) {
+                    await api.updateProfile(state.profile).catch(() => {});
+                }
+
                 window.location.hash = '#profile';
                 renderApp();
             } catch (err) {
@@ -473,6 +504,44 @@ async function loadInitialData() {
         state.jobs = jobs || [];
         state.profile = profile;
         state.resumes = resumes || [];
+
+        // Auto-heal: If user has uploaded resumes but profile has 0 projects, fetch resume text and populate projects
+        if (state.resumes.length > 0 && (!state.profile?.projects || state.profile.projects.length === 0)) {
+            try {
+                const latestResume = await api.getResume(state.resumes[0].id).catch(() => null);
+                if (latestResume?.rawText) {
+                    const extractedProjects = extractProjectsFromResumeText(latestResume.rawText);
+                    if (extractedProjects.length > 0) {
+                        if (!state.profile) state.profile = {};
+                        state.profile.projects = extractedProjects;
+                        await api.updateProfile(state.profile).catch(() => {});
+                    }
+                }
+            } catch (err) {
+                console.warn('Auto project extraction notice:', err);
+            }
+        }
+
+        // Auto-heal: If user has uploaded resumes but profile has 0 skills, populate skills
+        if (state.resumes.length > 0 && (!state.profile?.skills || state.profile.skills.length === 0)) {
+            try {
+                const latestResume = await api.getResume(state.resumes[0].id).catch(() => null);
+                if (latestResume?.rawText) {
+                    const extractedSkills = extractSkillsFromResumeText(latestResume.rawText);
+                    if (extractedSkills.length > 0) {
+                        if (!state.profile) state.profile = {};
+                        state.profile.skills = extractedSkills.map(s => ({
+                            name: s,
+                            category: getSkillMetadata(s).category,
+                            selfAssessedLevel: 'PROFICIENT'
+                        }));
+                        await api.updateProfile(state.profile).catch(() => {});
+                    }
+                }
+            } catch (err) {
+                console.warn('Auto skill extraction notice:', err);
+            }
+        }
 
         if (!state.activeJobId && state.jobs.length > 0) {
             state.activeJobId = state.jobs[0].id;
@@ -1344,6 +1413,105 @@ function getProfileSkillsList(p) {
         return p.verifiedSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || '')).filter(Boolean);
     }
     return [];
+}
+
+// Robust Resume Project & Skill Extractors (dual-layer client + server)
+function extractProjectsFromResumeText(text) {
+    if (!text) return [];
+    const cleanText = text.replace(/[\t\u00A0\uFFFD]+/g, ' ');
+    const lines = cleanText.split(/\r?\n/).map(l => l.trim().replace(/\s+/g, ' ')).filter(Boolean);
+
+    let inProjects = false;
+    const projects = [];
+    let current = null;
+
+    const actionVerbs = ['built', 'handled', 'used', 'integrated', 'worked', 'developed', 'created', 'designed', 'tested', 'managed', 'deployed'];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const upper = line.toUpperCase();
+
+        if (['PROJECTS', 'ACADEMIC PROJECTS', 'TECHNICAL PROJECTS'].includes(upper)) {
+            inProjects = true;
+            continue;
+        }
+
+        if (inProjects && (
+            upper.startsWith('LEADERSHIP') || 
+            upper.startsWith('CERTIFICATION') || 
+            upper.startsWith('EDUCATION') || 
+            upper.startsWith('EXPERIENCE') ||
+            upper.startsWith('PROFESSIONAL EXPERIENCE') || 
+            upper.startsWith('TECHNICAL SKILLS')
+        )) {
+            if (current) projects.push(current);
+            current = null;
+            inProjects = false;
+            break;
+        }
+
+        if (inProjects) {
+            const lower = line.toLowerCase();
+            const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*') || 
+                             line.endsWith('.') || actionVerbs.some(v => lower.startsWith(v));
+            
+            const isTech = (line.includes(',') || line.includes(';') || line.includes('/')) &&
+                           ['Java', 'Python', 'IoT', 'API', 'SQL', 'Vision', 'Cloud', 'Sensors', 'Hardware', 'Spring', 'React', 'REST'].some(k => line.includes(k));
+
+            if (!isBullet && !isTech) {
+                if (!current || current.bullets.length > 0) {
+                    if (current) projects.push(current);
+                    current = { title: line, role: '', bullets: [] };
+                } else {
+                    current.title = `${current.title} (${line})`;
+                }
+            } else if (isTech && (!current || !current.role)) {
+                if (current) current.role = line;
+            } else if (current) {
+                current.bullets.push(line);
+            }
+        }
+    }
+
+    if (current) projects.push(current);
+
+    return projects.map(p => ({
+        id: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ('proj_' + Math.random().toString(36).substr(2, 9)),
+        title: p.title,
+        role: p.role || '',
+        description: p.bullets.join('\n')
+    }));
+}
+
+function extractSkillsFromResumeText(text) {
+    if (!text) return [];
+    const cleanText = text.replace(/[\t\u00A0\uFFFD]+/g, ' ');
+    const lines = cleanText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const categories = ['Hardware:', 'Networking:', 'Operating Systems:', 'Programming:', 'Backend & Web:', 'Databases:', 'Tools:'];
+
+    const skills = [];
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i];
+        for (const cat of categories) {
+            if (line.startsWith(cat)) {
+                let itemsStr = line.slice(cat.length).trim();
+                if (!itemsStr && i + 1 < lines.length) {
+                    i++;
+                    itemsStr = lines[i].trim();
+                }
+                const items = itemsStr.split(/[,;•|]/).map(s => s.trim()).filter(Boolean);
+                for (const sk of items) {
+                    if (sk.length > 1 && sk.length < 50 && !skills.includes(sk)) {
+                        skills.push(sk);
+                    }
+                }
+                break;
+            }
+        }
+        i++;
+    }
+    return skills;
 }
 
 // Predefined skills registry and metadata by category
