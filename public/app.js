@@ -363,6 +363,43 @@ Requirements:
         });
     }
 
+    // Project Form Submit (Modal)
+    const projectForm = document.getElementById('project-form');
+    if (projectForm) {
+        projectForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('proj-modal-title').value;
+            const tech = document.getElementById('proj-modal-tech').value;
+            const desc = document.getElementById('proj-modal-desc').value;
+
+            if (title && title.trim()) {
+                if (!state.profile) state.profile = {};
+                if (!state.profile.projects) state.profile.projects = [];
+
+                state.profile.projects.push({
+                    title: title.trim(),
+                    role: tech.trim(),
+                    description: desc.trim()
+                });
+
+                try {
+                    if (api.isLoggedIn()) {
+                        await api.updateProfile(state.profile);
+                    }
+                    showToast(`Project "${title.trim()}" saved to Truth Bank!`, 'success');
+                } catch (err) {
+                    console.warn(err);
+                }
+                invalidateTruthBankState();
+                closeModal('project-modal');
+                document.getElementById('proj-modal-title').value = '';
+                document.getElementById('proj-modal-tech').value = '';
+                document.getElementById('proj-modal-desc').value = '';
+                renderApp();
+            }
+        });
+    }
+
     // Proof Submission Form
     const proofForm = document.getElementById('proof-form');
     if (proofForm) {
@@ -1571,11 +1608,16 @@ function renderProfileView() {
         <div class="card mt-6">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                 <div>
-                    <h3 style="font-size: 1.25rem; margin-bottom: 0.25rem;">
-                        <i class="fa-solid fa-diagram-project mr-2 text-gradient"></i>Verified Technical Projects Bank
-                    </h3>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;">
+                        <h3 style="font-size: 1.3rem; margin-bottom: 0;">
+                            <i class="fa-solid fa-diagram-project mr-2 text-gradient"></i>Verified Technical Projects Bank
+                        </h3>
+                        <span class="skills-stat-pill">
+                            <span class="pulse-dot"></span> ${(p.projects || []).length} Verified Projects
+                        </span>
+                    </div>
                     <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0;">
-                        Projects extracted from your master resume. Used as primary source-of-truth evidence during job tailoring & interview prep.
+                        Projects extracted from your master resume. Used as primary source-of-truth evidence during job tailoring & interview defense.
                     </p>
                 </div>
                 <button class="btn btn-secondary btn-sm" id="btn-add-profile-project">
@@ -1584,23 +1626,58 @@ function renderProfileView() {
             </div>
 
             <div class="projects-showcase-container">
-                ${(p.projects && p.projects.length > 0) ? p.projects.map((proj, idx) => `
-                    <div class="project-truth-card">
-                        <div class="project-card-header">
-                            <div>
-                                <h4 class="project-card-title">${proj.title || 'Technical Project'}</h4>
-                                ${proj.role ? `<div class="project-card-tech"><i class="fa-solid fa-code-branch mr-1 text-primary"></i> ${proj.role}</div>` : ''}
+                ${(p.projects && p.projects.length > 0) ? p.projects.map((proj, idx) => {
+                    const techList = (proj.role || '').split(/[,;•|]/).map(t => t.trim()).filter(Boolean);
+                    const bulletLines = (proj.description || '').split(/\r?\n|•/).map(b => b.trim()).filter(b => b.length > 2);
+
+                    return `
+                        <div class="project-truth-card">
+                            <div class="project-card-header">
+                                <div>
+                                    <h4 class="project-card-title">
+                                        <i class="fa-solid fa-cube text-primary mr-1"></i>
+                                        ${proj.title || 'Technical Project'}
+                                    </h4>
+                                    ${techList.length > 0 ? `
+                                        <div class="project-tech-pills">
+                                            ${techList.map(tech => `
+                                                <span class="project-tech-tag">
+                                                    <i class="fa-solid fa-code-branch" style="font-size: 0.7rem; opacity: 0.8;"></i> ${tech}
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="badge-verified-truth" style="font-size: 0.75rem;"><i class="fa-solid fa-check"></i> Resume-Verified</span>
+                                    <button class="skill-delete-btn btn-remove-project" data-idx="${idx}" title="Remove Project">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <button class="skill-delete-btn btn-remove-project" data-idx="${idx}" title="Remove Project">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
+
+                            ${bulletLines.length > 0 ? `
+                                <ul class="project-bullets-list">
+                                    ${bulletLines.map(line => `
+                                        <li class="project-bullet-item">
+                                            <i class="fa-solid fa-circle-check project-bullet-icon"></i>
+                                            <span>${line}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            ` : `
+                                <p class="project-card-desc">${proj.description || 'Verified implementation project with hands-on architecture.'}</p>
+                            `}
                         </div>
-                        <p class="project-card-desc">${proj.description || 'Verified implementation project with hands-on architecture.'}</p>
-                    </div>
-                `).join('') : `
-                    <div class="empty-state" style="padding: 1.5rem 1rem;">
+                    `;
+                }).join('') : `
+                    <div class="empty-state" style="padding: 2rem 1rem;">
                         <i class="fa-solid fa-folder-open empty-state-icon text-muted"></i>
-                        <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0.5rem;">No projects extracted yet. Upload your master resume or add project details manually.</p>
+                        <h4 style="font-size: 1rem; margin-top: 0.5rem;">No Projects Extracted Yet</h4>
+                        <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0.75rem;">Upload your master resume PDF or click "Add Project" to record your technical capstones and apps.</p>
+                        <button class="btn btn-secondary btn-sm" onclick="openModal('project-modal')">
+                            <i class="fa-solid fa-plus mr-1"></i> Add Custom Project
+                        </button>
                     </div>
                 `}
             </div>
@@ -2351,34 +2428,11 @@ function attachAppEvents(route) {
         });
     });
 
-    // Add Project Trigger
+    // Add Project Trigger (Opens Smart Project Modal)
     const btnAddProj = document.getElementById('btn-add-profile-project');
     if (btnAddProj) {
-        btnAddProj.addEventListener('click', async () => {
-            const title = prompt('Enter Project Title:');
-            if (!title || !title.trim()) return;
-            const role = prompt('Enter Technologies / Role (e.g. Java, Spring Boot, MySQL, REST APIs):') || '';
-            const description = prompt('Enter Project Description & Implementation Details:') || '';
-
-            if (!state.profile) state.profile = {};
-            if (!state.profile.projects) state.profile.projects = [];
-
-            state.profile.projects.push({
-                title: title.trim(),
-                role: role.trim(),
-                description: description.trim()
-            });
-
-            try {
-                if (api.isLoggedIn()) {
-                    await api.updateProfile(state.profile);
-                }
-                showToast(`Project "${title.trim()}" added to Truth Bank!`, 'success');
-            } catch (e) {
-                console.warn(e);
-            }
-            invalidateTruthBankState();
-            renderApp();
+        btnAddProj.addEventListener('click', () => {
+            openModal('project-modal');
         });
     }
 
