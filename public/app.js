@@ -1566,6 +1566,45 @@ function renderProfileView() {
                 </div>
             </div>
         </div>
+
+        <!-- Verified Projects Bank -->
+        <div class="card mt-6">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                    <h3 style="font-size: 1.25rem; margin-bottom: 0.25rem;">
+                        <i class="fa-solid fa-diagram-project mr-2 text-gradient"></i>Verified Technical Projects Bank
+                    </h3>
+                    <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0;">
+                        Projects extracted from your master resume. Used as primary source-of-truth evidence during job tailoring & interview prep.
+                    </p>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btn-add-profile-project">
+                    <i class="fa-solid fa-plus mr-1"></i> Add Project
+                </button>
+            </div>
+
+            <div class="projects-showcase-container">
+                ${(p.projects && p.projects.length > 0) ? p.projects.map((proj, idx) => `
+                    <div class="project-truth-card">
+                        <div class="project-card-header">
+                            <div>
+                                <h4 class="project-card-title">${proj.title || 'Technical Project'}</h4>
+                                ${proj.role ? `<div class="project-card-tech"><i class="fa-solid fa-code-branch mr-1 text-primary"></i> ${proj.role}</div>` : ''}
+                            </div>
+                            <button class="skill-delete-btn btn-remove-project" data-idx="${idx}" title="Remove Project">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                        <p class="project-card-desc">${proj.description || 'Verified implementation project with hands-on architecture.'}</p>
+                    </div>
+                `).join('') : `
+                    <div class="empty-state" style="padding: 1.5rem 1rem;">
+                        <i class="fa-solid fa-folder-open empty-state-icon text-muted"></i>
+                        <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: 0.5rem;">No projects extracted yet. Upload your master resume or add project details manually.</p>
+                    </div>
+                `}
+            </div>
+        </div>
     `;
 }
 
@@ -2303,6 +2342,57 @@ function attachAppEvents(route) {
                 });
                 try {
                     await api.updateProfile(state.profile);
+                } catch (e) {
+                    console.warn(e);
+                }
+                invalidateTruthBankState();
+                renderApp();
+            }
+        });
+    });
+
+    // Add Project Trigger
+    const btnAddProj = document.getElementById('btn-add-profile-project');
+    if (btnAddProj) {
+        btnAddProj.addEventListener('click', async () => {
+            const title = prompt('Enter Project Title:');
+            if (!title || !title.trim()) return;
+            const role = prompt('Enter Technologies / Role (e.g. Java, Spring Boot, MySQL, REST APIs):') || '';
+            const description = prompt('Enter Project Description & Implementation Details:') || '';
+
+            if (!state.profile) state.profile = {};
+            if (!state.profile.projects) state.profile.projects = [];
+
+            state.profile.projects.push({
+                title: title.trim(),
+                role: role.trim(),
+                description: description.trim()
+            });
+
+            try {
+                if (api.isLoggedIn()) {
+                    await api.updateProfile(state.profile);
+                }
+                showToast(`Project "${title.trim()}" added to Truth Bank!`, 'success');
+            } catch (e) {
+                console.warn(e);
+            }
+            invalidateTruthBankState();
+            renderApp();
+        });
+    }
+
+    // Remove Project Trigger
+    document.querySelectorAll('.btn-remove-project').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const idx = parseInt(btn.getAttribute('data-idx'), 10);
+            if (state.profile?.projects && state.profile.projects[idx]) {
+                const removed = state.profile.projects.splice(idx, 1);
+                try {
+                    if (api.isLoggedIn()) {
+                        await api.updateProfile(state.profile);
+                    }
+                    showToast(`Removed "${removed[0]?.title || 'project'}"`, 'info');
                 } catch (e) {
                     console.warn(e);
                 }
