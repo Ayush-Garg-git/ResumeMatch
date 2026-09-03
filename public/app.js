@@ -2477,9 +2477,12 @@ function attachAppEvents(route) {
                         certifications: []
                     };
 
-                    // Sync wiped profile to database
+                    // Sync wiped profile and delete all resumes in database
                     if (api.isLoggedIn()) {
-                        await api.updateProfile(state.profile);
+                        await Promise.all([
+                            api.updateProfile(state.profile).catch(() => {}),
+                            api.deleteAllResumes().catch(() => {})
+                        ]);
                     }
 
                     // Reset local memory state

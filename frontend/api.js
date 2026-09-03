@@ -231,6 +231,13 @@ const api = {
         return res.data;
     },
 
+    async deleteAllResumes() {
+        const res = await request('/resumes', {
+            method: 'DELETE'
+        });
+        return res.data;
+    },
+
     // 4. Jobs & AI Parsing
     async createJob(title, company, rawJdText) {
         const res = await request('/jobs', {

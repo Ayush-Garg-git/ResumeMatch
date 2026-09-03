@@ -100,6 +100,9 @@ public class ResumeService {
     private void parseAndPopulateProfileWithAi(User user, String resumeText) {
         if (resumeText == null || resumeText.isBlank()) return;
 
+        // Clean tabs, non-breaking spaces, and unicode replacement characters
+        String normalizedResumeText = resumeText.replaceAll("[\\t\\u00A0\\uFFFD]+", " ");
+
         CareerProfile profile = profileRepository.findByUserId(user.getId())
                 .orElseGet(() -> profileRepository.save(CareerProfile.builder()
                         .user(user)
@@ -124,8 +127,8 @@ public class ResumeService {
                 .collect(Collectors.toSet());
 
         // 1. Deterministic Extraction for Technical Skills & Projects
-        extractDeterministicSkills(profile, resumeText, existingSkillNames);
-        extractDeterministicProjects(profile, resumeText, existingProjectTitles);
+        extractDeterministicSkills(profile, normalizedResumeText, existingSkillNames);
+        extractDeterministicProjects(profile, normalizedResumeText, existingProjectTitles);
 
         // 2. Comprehensive AI Extraction with Gemini
         String systemInstruction = "You are an elite, comprehensive AI Resume Parser for technical and engineering resumes. " +
@@ -142,7 +145,7 @@ public class ResumeService {
                 "}";
 
         try {
-            String jsonResponse = aiService.generateContent(resumeText, systemInstruction, "RESUME_PARSE", user.getId());
+            String jsonResponse = aiService.generateContent(normalizedResumeText, systemInstruction, "RESUME_PARSE", user.getId());
             if (jsonResponse != null && !jsonResponse.isBlank()) {
                 String cleanJson = jsonResponse.trim();
                 if (cleanJson.startsWith("```json")) cleanJson = cleanJson.substring(7);
@@ -252,17 +255,21 @@ public class ResumeService {
 
     private void extractDeterministicSkills(CareerProfile profile, String text, Set<String> existingSkillNames) {
         String[] lines = text.split("\\r?\\n");
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (trimmed.startsWith("Hardware:") || trimmed.startsWith("Networking:") || 
-                trimmed.startsWith("Operating Systems:") || trimmed.startsWith("Programming:") || 
-                trimmed.startsWith("Backend & Web:") || trimmed.startsWith("Databases:") || 
-                trimmed.startsWith("Tools:")) {
-                
-                String[] parts = trimmed.split(":", 2);
-                if (parts.length == 2) {
-                    String category = parts[0].trim();
-                    String itemsStr = parts[1].trim();
+        String[] categories = new String[]{
+            "Hardware:", "Networking:", "Operating Systems:", "Programming:", "Backend & Web:", "Databases:", "Tools:"
+        };
+
+        int i = 0;
+        while (i < lines.length) {
+            String trimmed = lines[i].trim();
+            for (String cat : categories) {
+                if (trimmed.startsWith(cat)) {
+                    String category = cat.replace(":", "").trim();
+                    String itemsStr = trimmed.substring(cat.length()).trim();
+                    if (itemsStr.isEmpty() && i + 1 < lines.length) {
+                        i++;
+                        itemsStr = lines[i].trim();
+                    }
                     String[] skillItems = itemsStr.split("[,;•|]");
                     for (String item : skillItems) {
                         String cleanSkill = item.replaceAll("[()0-9/]", " ").trim();
@@ -271,75 +278,105 @@ public class ResumeService {
                             addSkillToProfile(profile, cleanSkill, category, existingSkillNames);
                         }
                     }
+                    break;
                 }
             }
+            i++;
         }
     }
 
     private void extractDeterministicProjects(CareerProfile profile, String text, Set<String> existingProjectTitles) {
-        String[] lines = text.split("\\r?\\n");
+        if (text == null || text.isBlank()) return;
+
+        // Clean tabs, non-breaking spaces, and unicode replacement characters
+        String cleanText = text.replaceAll("[\\t\\u00A0\\uFFFD]+", " ");
+        String[] lines = cleanText.split("\\r?\\n");
+
         boolean inProjectsSection = false;
         String currentTitle = null;
         String currentTech = null;
-        StringBuilder currentDesc = new StringBuilder();
+        List<String> currentBullets = new ArrayList<>();
 
-        for (String line : lines) {
-            String trimmed = line.trim();
-            if (trimmed.equalsIgnoreCase("PROJECTS") || trimmed.equalsIgnoreCase("ACADEMIC PROJECTS") || trimmed.equalsIgnoreCase("TECHNICAL PROJECTS")) {
+        String[] actionVerbs = new String[]{
+            "built", "handled", "used", "integrated", "worked", "developed", "created", "designed", "tested", "managed", "deployed"
+        };
+
+        for (String rawLine : lines) {
+            String trimmed = rawLine.trim().replaceAll(" +", " ");
+            if (trimmed.isEmpty()) continue;
+
+            String upper = trimmed.toUpperCase();
+            if (upper.equals("PROJECTS") || upper.equals("ACADEMIC PROJECTS") || upper.equals("TECHNICAL PROJECTS")) {
                 inProjectsSection = true;
                 continue;
             }
-            if (inProjectsSection && (trimmed.equalsIgnoreCase("LEADERSHIP & ACHIEVEMENTS") || 
-                                      trimmed.equalsIgnoreCase("CERTIFICATIONS") || 
-                                      trimmed.equalsIgnoreCase("EDUCATION") || 
-                                      trimmed.equalsIgnoreCase("EXPERIENCE") ||
-                                      trimmed.equalsIgnoreCase("PROFESSIONAL EXPERIENCE"))) {
-                // Save last pending project
-                savePendingProject(profile, currentTitle, currentTech, currentDesc.toString(), existingProjectTitles);
+            if (inProjectsSection && (upper.startsWith("LEADERSHIP") || upper.startsWith("CERTIFICATION") || 
+                                      upper.startsWith("EDUCATION") || upper.startsWith("EXPERIENCE") ||
+                                      upper.startsWith("PROFESSIONAL EXPERIENCE") || upper.startsWith("TECHNICAL SKILLS"))) {
+                savePendingProject(profile, currentTitle, currentTech, currentBullets, existingProjectTitles);
                 inProjectsSection = false;
                 break;
             }
 
             if (inProjectsSection) {
-                if (trimmed.contains("–") || trimmed.contains("-") || trimmed.startsWith("Prescription Reader") || trimmed.startsWith("EyeSonic") || trimmed.startsWith("Client Websites")) {
-                    if (currentTitle != null) {
-                        savePendingProject(profile, currentTitle, currentTech, currentDesc.toString(), existingProjectTitles);
-                        currentDesc.setLength(0);
-                    }
-                    currentTitle = trimmed;
-                    currentTech = "";
-                } else if (trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*")) {
-                    if (currentDesc.length() > 0) currentDesc.append(" ");
-                    currentDesc.append(trimmed);
-                } else if (!trimmed.isBlank()) {
-                    if (currentTech != null && currentTech.isEmpty()) {
-                        currentTech = trimmed;
+                String lower = trimmed.toLowerCase();
+                boolean isBullet = trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*") || 
+                                   trimmed.endsWith(".") || isStartingWithAnyVerb(lower, actionVerbs);
+                
+                boolean isTech = (trimmed.contains(",") || trimmed.contains(";") || trimmed.contains("/")) &&
+                                 (trimmed.contains("Java") || trimmed.contains("Python") || trimmed.contains("IoT") || 
+                                  trimmed.contains("API") || trimmed.contains("SQL") || trimmed.contains("Vision") || 
+                                  trimmed.contains("Cloud") || trimmed.contains("Sensors") || trimmed.contains("Hardware") || 
+                                  trimmed.contains("Spring") || trimmed.contains("React") || trimmed.contains("REST"));
+
+                if (!isBullet && !isTech) {
+                    // New project title or secondary title line
+                    if (currentTitle == null || !currentBullets.isEmpty()) {
+                        if (currentTitle != null) {
+                            savePendingProject(profile, currentTitle, currentTech, currentBullets, existingProjectTitles);
+                            currentBullets.clear();
+                        }
+                        currentTitle = trimmed;
+                        currentTech = "";
                     } else {
-                        if (currentDesc.length() > 0) currentDesc.append(" ");
-                        currentDesc.append(trimmed);
+                        // Secondary title line (e.g. "Stapler Labs")
+                        currentTitle = currentTitle + " (" + trimmed + ")";
                     }
+                } else if (isTech && (currentTech == null || currentTech.isEmpty())) {
+                    currentTech = trimmed;
+                } else {
+                    currentBullets.add(trimmed);
                 }
             }
         }
 
         if (inProjectsSection && currentTitle != null) {
-            savePendingProject(profile, currentTitle, currentTech, currentDesc.toString(), existingProjectTitles);
+            savePendingProject(profile, currentTitle, currentTech, currentBullets, existingProjectTitles);
         }
     }
 
-    private void savePendingProject(CareerProfile profile, String title, String role, String desc, Set<String> existingProjectTitles) {
+    private boolean isStartingWithAnyVerb(String lowerLine, String[] verbs) {
+        for (String verb : verbs) {
+            if (lowerLine.startsWith(verb)) return true;
+        }
+        return false;
+    }
+
+    private void savePendingProject(CareerProfile profile, String title, String role, List<String> bullets, Set<String> existingProjectTitles) {
         if (title == null || title.isBlank()) return;
         String cleanTitle = title.trim();
         if (!existingProjectTitles.contains(cleanTitle.toLowerCase())) {
+            String desc = bullets != null && !bullets.isEmpty() ? String.join("\n", bullets) : "";
             Project project = Project.builder()
                     .id(UUID.randomUUID())
                     .profile(profile)
                     .title(cleanTitle)
                     .role(role != null ? role.trim() : "")
-                    .description(desc != null ? desc.trim() : "")
+                    .description(desc)
                     .build();
             profile.getProjects().add(project);
             existingProjectTitles.add(cleanTitle.toLowerCase());
+            log.info("Extracted Project: {} with {} bullets", cleanTitle, bullets != null ? bullets.size() : 0);
         }
     }
 
@@ -374,5 +411,12 @@ public class ResumeService {
     public Resume getResume(UUID id, UUID userId) {
         return resumeRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume not found"));
+    }
+
+    @Transactional
+    public void deleteAllResumes(UUID userId) {
+        List<Resume> list = resumeRepository.findByUserId(userId);
+        resumeRepository.deleteAll(list);
+        log.info("Deleted all {} resumes for user {}", list.size(), userId);
     }
 }

@@ -45,4 +45,10 @@ public class ResumeController {
         Resume resume = resumeService.getResume(id, principal.getId());
         return ResponseEntity.ok(ApiResponse.success(resume, "Resume details retrieved successfully"));
     }
+
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<Void>> deleteAllResumes(@AuthenticationPrincipal UserPrincipal principal) {
+        resumeService.deleteAllResumes(principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(null, "All resumes deleted successfully"));
+    }
 }
