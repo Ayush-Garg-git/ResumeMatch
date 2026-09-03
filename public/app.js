@@ -1337,21 +1337,13 @@ function renderDashboardView(activeJob, hasResume, isTruthConfirmed, hasJob, has
 // Helper to extract clean array of skills
 function getProfileSkillsList(p) {
     if (!p) return [];
-    if (p.skills && p.skills.length > 0) {
+    if (Array.isArray(p.skills)) {
         return p.skills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || (s.skill && s.skill.name) || '')).filter(Boolean);
     }
-    if (p.verifiedSkills && p.verifiedSkills.length > 0) {
-        return p.verifiedSkills;
+    if (Array.isArray(p.verifiedSkills)) {
+        return p.verifiedSkills.map(s => typeof s === 'string' ? s : (s.name || s.skillName || '')).filter(Boolean);
     }
-    return [
-        'PC and Server Assembly', 'Hardware Troubleshooting', 'Component Replacement', 'BIOS/UEFI Configuration',
-        'TCP/IP', 'LAN / DNS / DHCP', 'Routers & Switches', 'Network Diagnostics',
-        'Linux CLI & Administration', 'Windows Server',
-        'SQL', 'MySQL', 'PostgreSQL', 'Data Integrity Checks',
-        'Java', 'C++', 'Python', 'JavaScript', 'TypeScript',
-        'Spring Boot', 'Spring MVC', 'REST APIs', 'Hibernate/JPA', 'JDBC', 'Node.js', 'HTML & CSS',
-        'Git & GitHub', 'VS Code', 'Postman', 'Vercel', 'Google Cloud Vision API', 'Gemini AI', 'IoT & Sensors'
-    ];
+    return [];
 }
 
 // Predefined skills registry and metadata by category
@@ -2412,19 +2404,29 @@ function attachAppEvents(route) {
     document.querySelectorAll('.chip-remove').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const skill = btn.getAttribute('data-skill');
-            if (state.profile?.skills) {
-                state.profile.skills = state.profile.skills.filter(s => {
+            if (!state.profile) state.profile = { skills: [] };
+            if (!Array.isArray(state.profile.skills)) state.profile.skills = [];
+
+            state.profile.skills = state.profile.skills.filter(s => {
+                const sName = typeof s === 'string' ? s : (s.name || s.skillName || (s.skill && s.skill.name) || '');
+                return sName.toLowerCase().trim() !== (skill || '').toLowerCase().trim();
+            });
+            if (Array.isArray(state.profile.verifiedSkills)) {
+                state.profile.verifiedSkills = state.profile.verifiedSkills.filter(s => {
                     const sName = typeof s === 'string' ? s : (s.name || s.skillName || '');
-                    return sName !== skill;
+                    return sName.toLowerCase().trim() !== (skill || '').toLowerCase().trim();
                 });
-                try {
-                    await api.updateProfile(state.profile);
-                } catch (e) {
-                    console.warn(e);
-                }
-                invalidateTruthBankState();
-                renderApp();
             }
+            try {
+                if (api.isLoggedIn()) {
+                    await api.updateProfile(state.profile);
+                }
+                showToast(`Removed "${skill}" from Truth Bank`, 'info');
+            } catch (err) {
+                console.warn(err);
+            }
+            invalidateTruthBankState();
+            renderApp();
         });
     });
 
@@ -2463,15 +2465,17 @@ function attachAppEvents(route) {
             if (confirm('Are you sure you want to reset your Truth Bank and delete all uploaded resumes & profile skills?')) {
                 try {
                     // Reset profile state
-                    if (!state.profile) state.profile = {};
-                    state.profile.skills = [];
-                    state.profile.verifiedSkills = [];
-                    state.profile.summary = '';
-                    state.profile.targetRoles = '';
-                    state.profile.projects = [];
-                    state.profile.experiences = [];
-                    state.profile.educations = [];
-                    state.profile.certifications = [];
+                    state.profile = {
+                        headline: '',
+                        targetRoles: '',
+                        summary: '',
+                        skills: [],
+                        verifiedSkills: [],
+                        projects: [],
+                        experiences: [],
+                        educations: [],
+                        certifications: []
+                    };
 
                     // Sync wiped profile to database
                     if (api.isLoggedIn()) {
@@ -2482,7 +2486,6 @@ function attachAppEvents(route) {
                     state.resumes = [];
                     state.claims = [];
                     state.readiness = null;
-                    state.activeJobId = null;
                     state.truthBankConfirmed = false;
                     state.isTruthBankStale = false;
                     state.truthBankConfirmedTimestamp = null;
